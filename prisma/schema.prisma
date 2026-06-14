@@ -1,0 +1,302 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────────────────
+
+enum Role {
+  student
+  artisan
+  admin
+  super_admin
+}
+
+enum BookingStatus {
+  pending
+  accepted
+  in_progress
+  completed
+  cancelled
+  rejected
+}
+
+enum ReportStatus {
+  open
+  resolved
+  escalated
+}
+
+enum VerificationStatus {
+  unverified
+  pending
+  verified
+  rejected
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// USERS
+// ─────────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  password     String
+  role         Role     @default(student)
+  phone        String?
+  avatarUrl    String?
+  isSuspended  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  artisanProfile ArtisanProfile?
+  studentProfile StudentProfile?
+
+  refreshTokens   RefreshToken[]
+  bookingsAsStudent Booking[] @relation("StudentBookings")
+  reviewsWritten    Review[] @relation("StudentReviews")
+
+  reportsFiled   Report[] @relation("ReporterReports")
+  reportsAgainst Report[] @relation("TargetReports")
+
+  messagesSent     Message[] @relation("SentMessages")
+  messagesReceived Message[] @relation("ReceivedMessages")
+
+  @@index([role])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ARTISANS
+// ─────────────────────────────────────────────────────────────────────────
+
+model ArtisanProfile {
+  id          String              @id @default(uuid())
+  userId      String              @unique
+  businessName String?
+  bio         String?
+  skills      String[]            @default([])
+  categories  String[]            @default([])
+  pricingFrom Decimal?            @db.Decimal(10, 2)
+  location    String?
+  rating      Decimal             @default(0) @db.Decimal(3, 2)
+  reviewCount Int                 @default(0)
+  availability Json?
+  portfolio   PortfolioItem[]
+  services    Service[]
+  verification VerificationStatus @default(unverified)
+  isSuspended Boolean             @default(false)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookings Booking[] @relation("ArtisanBookings")
+  reviews  Review[]  @relation("ArtisanReviews")
+  savedBy  SavedArtisan[]
+
+  @@index([verification])
+  @@index([categories])
+  @@map("artisan_profiles")
+}
+
+model PortfolioItem {
+  id         String   @id @default(uuid())
+  artisanId  String
+  imageUrl   String
+  caption    String?
+  createdAt  DateTime @default(now())
+
+  artisan ArtisanProfile @relation(fields: [artisanId], references: [id], onDelete: Cascade)
+
+  @@index([artisanId])
+  @@map("portfolio_items")
+}
+
+model Service {
+  id              String   @id @default(uuid())
+  artisanId       String
+  title           String
+  description     String
+  price           Decimal  @db.Decimal(10, 2)
+  durationMinutes Int
+  category        String
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  artisan ArtisanProfile @relation(fields: [artisanId], references: [id], onDelete: Cascade)
+
+  @@index([artisanId])
+  @@map("services")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// STUDENTS
+// ─────────────────────────────────────────────────────────────────────────
+
+model StudentProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  campus    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  savedArtisans SavedArtisan[]
+
+  @@map("student_profiles")
+}
+
+model SavedArtisan {
+  id         String   @id @default(uuid())
+  studentId  String
+  artisanId  String
+  createdAt  DateTime @default(now())
+
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  artisan ArtisanProfile @relation(fields: [artisanId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, artisanId])
+  @@index([artisanId])
+  @@map("saved_artisans")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// BOOKINGS
+// ─────────────────────────────────────────────────────────────────────────
+
+model Booking {
+  id            String        @id @default(uuid())
+  studentId     String
+  artisanId     String
+  serviceTitle  String
+  price         Decimal       @db.Decimal(10, 2)
+  status        BookingStatus @default(pending)
+  scheduledTime DateTime
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  student User           @relation("StudentBookings", fields: [studentId], references: [id], onDelete: Cascade)
+  artisan ArtisanProfile @relation("ArtisanBookings", fields: [artisanId], references: [id], onDelete: Cascade)
+  review  Review?
+
+  @@index([studentId])
+  @@index([artisanId])
+  @@index([status])
+  @@map("bookings")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// REVIEWS
+// ─────────────────────────────────────────────────────────────────────────
+
+model Review {
+  id        String   @id @default(uuid())
+  bookingId String   @unique
+  studentId String
+  artisanId String
+  rating    Int
+  comment   String
+  isFlagged Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  booking Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  student User           @relation("StudentReviews", fields: [studentId], references: [id], onDelete: Cascade)
+  artisan ArtisanProfile @relation("ArtisanReviews", fields: [artisanId], references: [id], onDelete: Cascade)
+
+  @@index([artisanId])
+  @@index([studentId])
+  @@map("reviews")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// CATEGORIES
+// ─────────────────────────────────────────────────────────────────────────
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("categories")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// REPORTS
+// ─────────────────────────────────────────────────────────────────────────
+
+model Report {
+  id           String       @id @default(uuid())
+  reporterId   String
+  targetUserId String
+  reason       String
+  details      String?
+  status       ReportStatus @default(open)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  reporter User @relation("ReporterReports", fields: [reporterId], references: [id], onDelete: Cascade)
+  target   User @relation("TargetReports", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([targetUserId])
+  @@map("reports")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// MESSAGES (CHAT)
+// ─────────────────────────────────────────────────────────────────────────
+
+model Message {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  chatId     String
+  message    String
+  readAt     DateTime?
+  timestamp  DateTime @default(now())
+
+  sender   User @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([chatId])
+  @@index([senderId])
+  @@index([receiverId])
+  @@map("messages")
+}
