@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 
 type AsyncRouteHandler = (
-  req: Request,
+  req: Request<any, any, any, any>,
   res: Response,
   next: NextFunction
 ) => Promise<unknown>;
