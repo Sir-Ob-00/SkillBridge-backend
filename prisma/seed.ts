@@ -1,8 +1,7 @@
-import { PrismaClient, Role, VerificationStatus } from '@prisma/client';
+import { Role, VerificationStatus } from '@prisma/client';
+import { prisma } from '../src/config/prisma';
 import { hashPassword } from '../src/utils/password';
 import { DEFAULT_CATEGORIES } from '../src/modules/categories/categories.service';
-
-const prisma = new PrismaClient();
 
 async function main() {
   console.log('Seeding categories...');

@@ -33,6 +33,11 @@ cp .env.example .env
 
 At minimum, set `DATABASE_URL`, `JWT_ACCESS_SECRET`, and `JWT_REFRESH_SECRET`.
 
+This project uses **Prisma 7**, which reads the database connection from
+`prisma.config.ts` (not `schema.prisma`) for CLI/migration commands, and
+uses a driver adapter (`@prisma/adapter-pg`) for the runtime client. Both
+are already wired up — they just read `DATABASE_URL` from `.env`.
+
 ### 4. Generate the Prisma client & run migrations
 
 ```bash

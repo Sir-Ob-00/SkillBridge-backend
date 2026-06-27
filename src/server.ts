@@ -15,7 +15,7 @@ const bootstrap = async (): Promise<void> => {
   // Seed default categories on first run.
   await categoriesService.ensureDefaults();
 
-  httpServer.listen(env.PORT, () => {
+  httpServer.listen(env.PORT, '0.0.0.0', () => {
     logger.info(`SkillBridge API listening on port ${env.PORT} (${env.NODE_ENV})`);
   });
 
