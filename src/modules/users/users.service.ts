@@ -42,7 +42,7 @@ export const usersService = {
     return user;
   },
 
-  async updateAvatar(userId: string, file: Express.Multer.File) {
+  async updateAvatar(userId: string, file: any) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { avatarUrl: true },

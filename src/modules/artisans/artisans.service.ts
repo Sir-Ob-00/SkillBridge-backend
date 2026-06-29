@@ -124,7 +124,7 @@ export const artisansService = {
     });
   },
 
-  async addPortfolioItem(userId: string, input: { title: string; description?: string }, file: Express.Multer.File) {
+  async addPortfolioItem(userId: string, input: { title: string; description?: string }, file: any) {
     const profile = await prisma.artisanProfile.findUnique({ where: { userId } });
     if (!profile) {
       throw ApiError.notFound('Artisan profile not found.');
@@ -179,7 +179,7 @@ export const artisansService = {
     return { message: 'Portfolio item removed.' };
   },
 
-  async updateProfileImage(userId: string, file: Express.Multer.File) {
+  async updateProfileImage(userId: string, file: any) {
     const profile = await prisma.artisanProfile.findUnique({ where: { userId } });
     if (!profile) {
       throw ApiError.notFound('Artisan profile not found.');
