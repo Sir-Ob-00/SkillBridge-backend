@@ -7,7 +7,7 @@ import { unlink } from 'fs/promises';
 const tempDir = path.join(os.tmpdir(), 'skillbridge-uploads');
 
 const storage = multer.diskStorage({
-  destination: (_req: any, cb: any) => {
+  destination: (_req: any, _file: any, cb: any) => {
     cb(null, tempDir);
   },
   filename: (_req: any, file: any, cb: any) => {
