@@ -1,9 +1,10 @@
 import multer from 'multer';
 import path from 'path';
+import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
 import { unlink } from 'fs/promises';
 
-const tempDir = path.resolve(process.cwd(), 'temp');
+const tempDir = path.join(os.tmpdir(), 'skillbridge-uploads');
 
 const storage = multer.diskStorage({
   destination: (_req: any, cb: any) => {
