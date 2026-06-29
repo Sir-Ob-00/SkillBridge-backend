@@ -8,12 +8,14 @@ import {
   listUsersQuerySchema,
   userIdParamSchema,
 } from './users.validators';
+import { imageUpload } from './upload';
 
 const router = Router();
 
 // Self
 router.get('/me', requireAuth, usersController.getMe);
 router.patch('/me', requireAuth, validate(updateProfileSchema), usersController.updateMe);
+router.post('/me/avatar', requireAuth, imageUpload.single('avatar'), usersController.updateAvatar);
 
 // Admin
 router.get(

@@ -5,8 +5,12 @@ import { env } from './config/env';
 import { prisma } from './config/prisma';
 import { logger } from './utils/logger';
 import { categoriesService } from './modules/categories/categories.service';
+import { mkdir } from 'fs/promises';
+import path from 'path';
 
 const bootstrap = async (): Promise<void> => {
+  await mkdir(path.resolve(process.cwd(), 'temp'), { recursive: true });
+
   const app = createApp();
   const httpServer = http.createServer(app);
 

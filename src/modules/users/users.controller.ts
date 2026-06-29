@@ -4,6 +4,7 @@ import { sendSuccess, sendPaginated } from '../../utils/apiResponse';
 import { ApiError } from '../../utils/ApiError';
 import { usersService } from './users.service';
 import { UpdateProfileInput, ListUsersQuery, UserIdParam } from './users.validators';
+import { imageUpload } from './upload';
 
 export const usersController = {
   getMe: asyncHandler(async (req: Request, res: Response) => {
@@ -16,6 +17,12 @@ export const usersController = {
     if (!req.user) throw ApiError.unauthorized();
     const user = await usersService.updateProfile(req.user.id, req.body);
     return sendSuccess(res, user, 'Profile updated successfully.');
+  }),
+
+  updateAvatar: asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) throw ApiError.unauthorized();
+    const user = await usersService.updateAvatar(req.user.id, (req as any).file);
+    return sendSuccess(res, user, 'Avatar updated successfully.');
   }),
 
   getById: asyncHandler(async (req: Request<UserIdParam>, res: Response) => {

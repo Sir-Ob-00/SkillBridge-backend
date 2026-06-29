@@ -13,7 +13,9 @@ import {
   createServiceSchema,
   updateServiceSchema,
   serviceIdParamSchema,
+  updateAvailabilitySchema,
 } from './artisans.validators';
+import { imageUpload } from './upload';
 
 const router = Router();
 
@@ -35,8 +37,17 @@ router.post(
   '/me/portfolio',
   requireAuth,
   requireRole(['artisan']),
+  imageUpload.single('image'),
   validate(addPortfolioItemSchema),
   artisansController.addPortfolioItem
+);
+
+router.post(
+  '/me/profile-image',
+  requireAuth,
+  requireRole(['artisan']),
+  imageUpload.single('image'),
+  artisansController.updateProfileImage
 );
 
 // ── Public listing ───────────────────────────────────────────────────
@@ -46,6 +57,11 @@ router.get(
   '/:id/services',
   validate(artisanIdParamSchema, 'params'),
   artisansController.listServices
+);
+router.get(
+  '/:id/portfolio',
+  validate(artisanIdParamSchema, 'params'),
+  artisansController.getPortfolio
 );
 router.get(
   '/:id/availability',
@@ -97,7 +113,7 @@ router.put(
   requireAuth,
   requireRole(['artisan']),
   validate(artisanIdParamSchema, 'params'),
-  validate(upsertArtisanProfileSchema),
+  validate(updateAvailabilitySchema),
   artisansController.updateAvailability
 );
 

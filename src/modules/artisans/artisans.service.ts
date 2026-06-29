@@ -12,6 +12,8 @@ import {
   CreateServiceInput,
   UpdateServiceInput,
 } from './artisans.validators';
+import { uploadToCloudinary, deleteFromCloudinary, getPublicIdFromUrl } from '../../utils/cloudinary';
+import { cleanupTempFile } from './upload';
 
 const ARTISAN_INCLUDE = {
   user: {
@@ -110,17 +112,43 @@ export const artisansService = {
     return { items, meta: buildPaginationMeta(page, pageSize, totalItems) };
   },
 
-  async addPortfolioItem(userId: string, input: AddPortfolioItemInput) {
+  async listPortfolio(artisanId: string) {
+    const profile = await prisma.artisanProfile.findUnique({ where: { id: artisanId } });
+    if (!profile) {
+      throw ApiError.notFound('Artisan not found.');
+    }
+
+    return prisma.portfolioItem.findMany({
+      where: { artisanId },
+      orderBy: { createdAt: 'desc' },
+    });
+  },
+
+  async addPortfolioItem(userId: string, input: { title: string; description?: string }, file: Express.Multer.File) {
     const profile = await prisma.artisanProfile.findUnique({ where: { userId } });
     if (!profile) {
       throw ApiError.notFound('Artisan profile not found.');
     }
 
+    if (!file) {
+      throw ApiError.badRequest('Image file is required.');
+    }
+
+    let imageUrl: string;
+    try {
+      imageUrl = await uploadToCloudinary(file.path, 'portfolio');
+    } catch (error) {
+      throw ApiError.internal('Failed to upload image.');
+    } finally {
+      await cleanupTempFile(file.path);
+    }
+
     const item = await prisma.portfolioItem.create({
       data: {
         artisanId: profile.id,
-        imageUrl: input.imageUrl,
-        caption: input.caption,
+        title: input.title,
+        description: input.description,
+        imageUrl,
       },
     });
 
@@ -138,8 +166,54 @@ export const artisansService = {
       throw ApiError.notFound('Portfolio item not found.');
     }
 
+    try {
+      const publicId = getPublicIdFromUrl(item.imageUrl);
+      if (publicId) {
+        await deleteFromCloudinary(publicId);
+      }
+    } catch {
+      // proceed with deletion even if cloudinary delete fails
+    }
+
     await prisma.portfolioItem.delete({ where: { id: itemId } });
     return { message: 'Portfolio item removed.' };
+  },
+
+  async updateProfileImage(userId: string, file: Express.Multer.File) {
+    const profile = await prisma.artisanProfile.findUnique({ where: { userId } });
+    if (!profile) {
+      throw ApiError.notFound('Artisan profile not found.');
+    }
+
+    if (!file) {
+      throw ApiError.badRequest('Image file is required.');
+    }
+
+    try {
+      const oldPublicId = getPublicIdFromUrl(profile.profileImageUrl ?? '');
+      if (oldPublicId) {
+        await deleteFromCloudinary(oldPublicId).catch(() => {});
+      }
+    } catch {
+      // ignore old image cleanup errors
+    }
+
+    let imageUrl: string;
+    try {
+      imageUrl = await uploadToCloudinary(file.path, 'artisans/profile');
+    } catch (error) {
+      throw ApiError.internal('Failed to upload image.');
+    } finally {
+      await cleanupTempFile(file.path);
+    }
+
+    const updated = await prisma.artisanProfile.update({
+      where: { userId },
+      data: { profileImageUrl: imageUrl },
+      include: ARTISAN_INCLUDE,
+    });
+
+    return updated;
   },
 
   // ── Admin moderation ────────────────────────────────────────────────

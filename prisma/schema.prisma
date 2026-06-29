@@ -114,6 +114,7 @@ model ArtisanProfile {
   rating      Decimal             @default(0) @db.Decimal(3, 2)
   reviewCount Int                 @default(0)
   availability Json?
+  profileImageUrl String?
   portfolio   PortfolioItem[]
   services    Service[]
   verification VerificationStatus @default(unverified)
@@ -135,7 +136,8 @@ model PortfolioItem {
   id         String   @id @default(uuid())
   artisanId  String
   imageUrl   String
-  caption    String?
+  title      String
+  description String?
   createdAt  DateTime @default(now())
 
   artisan ArtisanProfile @relation(fields: [artisanId], references: [id], onDelete: Cascade)

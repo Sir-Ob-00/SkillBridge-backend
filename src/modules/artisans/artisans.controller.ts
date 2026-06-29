@@ -15,7 +15,9 @@ import {
   CreateServiceInput,
   UpdateServiceInput,
   ServiceIdParam,
+  UpdateAvailabilityInput,
 } from './artisans.validators';
+import { imageUpload } from './upload';
 
 export const artisansController = {
   getMyProfile: asyncHandler(async (req: Request, res: Response) => {
@@ -44,13 +46,22 @@ export const artisansController = {
     }
   ),
 
-  addPortfolioItem: asyncHandler(
-    async (req: Request<unknown, unknown, AddPortfolioItemInput>, res: Response) => {
-      if (!req.user) throw ApiError.unauthorized();
-      const item = await artisansService.addPortfolioItem(req.user.id, req.body);
-      return sendSuccess(res, item, 'Portfolio item added.', 201);
-    }
-  ),
+  getPortfolio: asyncHandler(async (req: Request<ArtisanIdParam>, res: Response) => {
+    const items = await artisansService.listPortfolio(req.params.id);
+    return sendSuccess(res, items);
+  }),
+
+  updateProfileImage: asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) throw ApiError.unauthorized();
+    const profile = await artisansService.updateProfileImage(req.user.id, (req as any).file);
+    return sendSuccess(res, profile, 'Profile image updated.');
+  }),
+
+  addPortfolioItem: asyncHandler(async (req: Request<unknown, unknown, AddPortfolioItemInput>, res: Response) => {
+    if (!req.user) throw ApiError.unauthorized();
+    const item = await artisansService.addPortfolioItem(req.user.id, req.body, (req as any).file);
+    return sendSuccess(res, item, 'Portfolio item added.', 201);
+  }),
 
   removePortfolioItem: asyncHandler(async (req: Request<PortfolioItemParam>, res: Response) => {
     if (!req.user) throw ApiError.unauthorized();
@@ -102,9 +113,9 @@ export const artisansController = {
   ),
 
   updateAvailability: asyncHandler(
-    async (req: Request<ArtisanIdParam, unknown, UpsertArtisanProfileInput>, res: Response) => {
+    async (req: Request<ArtisanIdParam, unknown, UpdateAvailabilityInput>, res: Response) => {
       if (!req.user) throw ApiError.unauthorized();
-      const availability = await artisansService.updateAvailability(req.user.id, req.body.availability);
+      const availability = await artisansService.updateAvailability(req.user.id, req.body.slots);
       return sendSuccess(res, availability, 'Availability updated.');
     }
   ),

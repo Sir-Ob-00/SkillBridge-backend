@@ -3,6 +3,8 @@ import { ApiError } from '../../utils/ApiError';
 import { parsePagination } from '../../utils/pagination';
 import { buildPaginationMeta } from '../../utils/apiResponse';
 import { UpdateProfileInput, ListUsersQuery } from './users.validators';
+import { uploadToCloudinary, deleteFromCloudinary, getPublicIdFromUrl } from '../../utils/cloudinary';
+import { cleanupTempFile } from './upload';
 
 const PUBLIC_USER_FIELDS = {
   id: true,
@@ -38,6 +40,47 @@ export const usersService = {
     });
 
     return user;
+  },
+
+  async updateAvatar(userId: string, file: Express.Multer.File) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { avatarUrl: true },
+    });
+
+    if (!user) {
+      throw ApiError.notFound('User not found.');
+    }
+
+    if (!file) {
+      throw ApiError.badRequest('Image file is required.');
+    }
+
+    try {
+      const oldPublicId = getPublicIdFromUrl(user.avatarUrl ?? '');
+      if (oldPublicId) {
+        await deleteFromCloudinary(oldPublicId).catch(() => {});
+      }
+    } catch {
+      // ignore old image cleanup errors
+    }
+
+    let imageUrl: string;
+    try {
+      imageUrl = await uploadToCloudinary(file.path, 'avatars');
+    } catch (error) {
+      throw ApiError.internal('Failed to upload image.');
+    } finally {
+      await cleanupTempFile(file.path);
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl: imageUrl },
+      select: PUBLIC_USER_FIELDS,
+    });
+
+    return updated;
   },
 
   async listUsers(query: ListUsersQuery) {

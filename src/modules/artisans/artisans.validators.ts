@@ -7,6 +7,7 @@ export const upsertArtisanProfileSchema = z.object({
   categories: z.array(z.string().trim().min(1)).max(10).optional(),
   pricingFrom: z.coerce.number().nonnegative().optional(),
   location: z.string().trim().max(120).optional(),
+  profileImageUrl: z.string().url().optional(),
   availability: z
     .array(
       z.object({
@@ -26,9 +27,24 @@ export const upsertArtisanProfileSchema = z.object({
     .optional(),
 });
 
-export const addPortfolioItemSchema = z.object({
-  imageUrl: z.string().url('imageUrl must be a valid URL'),
-  caption: z.string().trim().max(200).optional(),
+export const updateAvailabilitySchema = z.object({
+  slots: z
+    .array(
+      z.object({
+        day: z.enum([
+          'monday',
+          'tuesday',
+          'wednesday',
+          'thursday',
+          'friday',
+          'saturday',
+          'sunday',
+        ]),
+        startTime: z.string().regex(/^\d{2}:\d{2}$/, 'Expected HH:mm format'),
+        endTime: z.string().regex(/^\d{2}:\d{2}$/, 'Expected HH:mm format'),
+      })
+    )
+    .optional(),
 });
 
 export const listArtisansQuerySchema = z.object({
@@ -46,6 +62,11 @@ export const artisanIdParamSchema = z.object({
 export const portfolioItemParamSchema = z.object({
   id: z.string().uuid('Invalid artisan id'),
   itemId: z.string().uuid('Invalid portfolio item id'),
+});
+
+export const addPortfolioItemSchema = z.object({
+  title: z.string().trim().min(1).max(100),
+  description: z.string().trim().max(500).optional(),
 });
 
 export const createServiceSchema = z.object({
@@ -66,6 +87,7 @@ export const serviceIdParamSchema = z.object({
 export type CreateServiceInput = z.infer<typeof createServiceSchema>;
 export type UpdateServiceInput = z.infer<typeof updateServiceSchema>;
 export type ServiceIdParam = z.infer<typeof serviceIdParamSchema>;
+export type UpdateAvailabilityInput = z.infer<typeof updateAvailabilitySchema>;
 
 export type UpsertArtisanProfileInput = z.infer<typeof upsertArtisanProfileSchema>;
 export type AddPortfolioItemInput = z.infer<typeof addPortfolioItemSchema>;
