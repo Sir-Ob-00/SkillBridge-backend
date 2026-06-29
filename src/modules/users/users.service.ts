@@ -4,7 +4,6 @@ import { parsePagination } from '../../utils/pagination';
 import { buildPaginationMeta } from '../../utils/apiResponse';
 import { UpdateProfileInput, ListUsersQuery } from './users.validators';
 import { uploadToCloudinary, deleteFromCloudinary, getPublicIdFromUrl } from '../../utils/cloudinary';
-import { cleanupTempFile } from './upload';
 
 const PUBLIC_USER_FIELDS = {
   id: true,
@@ -67,11 +66,9 @@ export const usersService = {
 
     let imageUrl: string;
     try {
-      imageUrl = await uploadToCloudinary(file.path, 'avatars');
+      imageUrl = await uploadToCloudinary(file.buffer, 'avatars');
     } catch (error) {
       throw ApiError.internal('Failed to upload image.');
-    } finally {
-      await cleanupTempFile(file.path);
     }
 
     const updated = await prisma.user.update({

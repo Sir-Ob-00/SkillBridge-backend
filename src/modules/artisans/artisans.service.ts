@@ -13,7 +13,6 @@ import {
   UpdateServiceInput,
 } from './artisans.validators';
 import { uploadToCloudinary, deleteFromCloudinary, getPublicIdFromUrl } from '../../utils/cloudinary';
-import { cleanupTempFile } from './upload';
 
 const ARTISAN_INCLUDE = {
   user: {
@@ -136,11 +135,9 @@ export const artisansService = {
 
     let imageUrl: string;
     try {
-      imageUrl = await uploadToCloudinary(file.path, 'portfolio');
+      imageUrl = await uploadToCloudinary(file.buffer, 'portfolio');
     } catch (error) {
       throw ApiError.internal('Failed to upload image.');
-    } finally {
-      await cleanupTempFile(file.path);
     }
 
     const item = await prisma.portfolioItem.create({
@@ -200,11 +197,9 @@ export const artisansService = {
 
     let imageUrl: string;
     try {
-      imageUrl = await uploadToCloudinary(file.path, 'artisans/profile');
+      imageUrl = await uploadToCloudinary(file.buffer, 'artisans/profile');
     } catch (error) {
       throw ApiError.internal('Failed to upload image.');
-    } finally {
-      await cleanupTempFile(file.path);
     }
 
     const updated = await prisma.artisanProfile.update({

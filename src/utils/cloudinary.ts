@@ -9,15 +9,22 @@ if (env.CLOUDINARY_CLOUD_NAME && env.CLOUDINARY_API_KEY && env.CLOUDINARY_API_SE
   });
 }
 
-export const uploadToCloudinary = async (filePath: string, folder: string): Promise<string> => {
+export const uploadToCloudinary = async (buffer: Buffer, folder: string): Promise<string> => {
   if (!cloudinary.config().cloud_name) {
     throw new Error('Cloudinary is not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET.');
   }
-  const result = await cloudinary.uploader.upload(filePath, {
-    folder,
-    resource_type: 'image',
+
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder, resource_type: 'image' },
+      (error: any, result: any) => {
+        if (error) return reject(error);
+        if (!result) return reject(new Error('Cloudinary upload failed'));
+        resolve(result.secure_url);
+      }
+    );
+    stream.end(buffer);
   });
-  return result.secure_url;
 };
 
 export const deleteFromCloudinary = async (publicId: string): Promise<void> => {
