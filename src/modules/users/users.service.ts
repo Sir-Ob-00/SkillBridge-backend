@@ -68,6 +68,7 @@ export const usersService = {
     try {
       imageUrl = await uploadToCloudinary(file.buffer, 'avatars');
     } catch (error) {
+      console.error('Cloudinary upload failed (avatar):', error);
       throw ApiError.internal('Failed to upload image.');
     }
 

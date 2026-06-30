@@ -1,12 +1,16 @@
 import { v2 as cloudinary } from 'cloudinary';
 import { env } from '../config/env';
 
-if (env.CLOUDINARY_CLOUD_NAME && env.CLOUDINARY_API_KEY && env.CLOUDINARY_API_SECRET) {
+const configured = env.CLOUDINARY_CLOUD_NAME && env.CLOUDINARY_API_KEY && env.CLOUDINARY_API_SECRET;
+
+if (configured) {
   cloudinary.config({
     cloud_name: env.CLOUDINARY_CLOUD_NAME,
     api_key: env.CLOUDINARY_API_KEY,
     api_secret: env.CLOUDINARY_API_SECRET,
   });
+} else {
+  console.warn('[Cloudinary] Config missing. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET.');
 }
 
 export const uploadToCloudinary = async (buffer: Buffer, folder: string): Promise<string> => {

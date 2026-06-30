@@ -137,6 +137,7 @@ export const artisansService = {
     try {
       imageUrl = await uploadToCloudinary(file.buffer, 'portfolio');
     } catch (error) {
+      console.error('Cloudinary upload failed (portfolio):', error);
       throw ApiError.internal('Failed to upload image.');
     }
 
@@ -199,6 +200,7 @@ export const artisansService = {
     try {
       imageUrl = await uploadToCloudinary(file.buffer, 'artisans/profile');
     } catch (error) {
+      console.error('Cloudinary upload failed (profile-image):', error);
       throw ApiError.internal('Failed to upload image.');
     }
 

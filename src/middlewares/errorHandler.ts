@@ -16,6 +16,7 @@ export const errorHandler = (
   _next: NextFunction
 ): void => {
   if (err instanceof ApiError) {
+    logger.error('ApiError:', err.message, err.details ?? '');
     res.status(err.statusCode).json({
       success: false,
       message: err.message,
