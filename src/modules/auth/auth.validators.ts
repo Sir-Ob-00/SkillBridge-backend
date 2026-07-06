@@ -7,6 +7,14 @@ export const registerSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
   role: z.nativeEnum(Role).default(Role.student),
   phone: z.string().trim().min(7).max(20).optional(),
+}).superRefine((data, ctx) => {
+  if (data.role === Role.artisan && !data.phone) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['phone'],
+      message: 'Phone number is required for artisans.',
+    });
+  }
 });
 
 export const loginSchema = z.object({

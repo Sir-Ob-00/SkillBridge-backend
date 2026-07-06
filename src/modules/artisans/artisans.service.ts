@@ -20,6 +20,7 @@ const ARTISAN_INCLUDE = {
       id: true,
       name: true,
       email: true,
+      phone: true,
       avatarUrl: true,
       isSuspended: true,
     },

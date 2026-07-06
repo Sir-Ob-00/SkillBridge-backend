@@ -111,6 +111,7 @@ model ArtisanProfile {
   categories  String[]            @default([])
   pricingFrom Decimal?            @db.Decimal(10, 2)
   location    String?
+  yearsOfExperience Int?
   rating      Decimal             @default(0) @db.Decimal(3, 2)
   reviewCount Int                 @default(0)
   availability Json?

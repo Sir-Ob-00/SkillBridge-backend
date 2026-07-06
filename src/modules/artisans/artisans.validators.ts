@@ -6,6 +6,7 @@ export const upsertArtisanProfileSchema = z.object({
   skills: z.array(z.string().trim().min(1)).max(20).optional(),
   categories: z.array(z.string().trim().min(1)).max(10).optional(),
   pricingFrom: z.coerce.number().nonnegative().optional(),
+  yearsOfExperience: z.coerce.number().int().min(0).max(60).optional(),
   location: z.string().trim().max(120).optional(),
   profileImageUrl: z.string().url().optional(),
   availability: z
