@@ -109,6 +109,20 @@ export const authService = {
     return { user: publicUser, ...tokens };
   },
 
+  /**
+   * Admin dashboard login. Reuses the standard login flow but only issues
+   * tokens for accounts with an admin or super_admin role.
+   */
+  async adminLogin(input: LoginInput) {
+    const result = await this.login(input);
+
+    if (result.user.role !== Role.admin && result.user.role !== Role.super_admin) {
+      throw ApiError.forbidden('This account is not authorized to access the admin dashboard.');
+    }
+
+    return result;
+  },
+
   async refresh(refreshToken: string) {
     let payload;
     try {

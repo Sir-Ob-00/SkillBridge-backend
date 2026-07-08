@@ -17,6 +17,23 @@ enum Role {
   super_admin
 }
 
+enum ApplicationStatus {
+  EMAIL_VERIFICATION_PENDING
+  PENDING_PROFILE
+  PENDING_REVIEW
+  UNDER_REVIEW
+  CHANGES_REQUESTED
+  ACTIVE
+  REJECTED
+}
+
+enum VerificationReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
+}
+
 enum BookingStatus {
   pending
   accepted
@@ -30,13 +47,6 @@ enum ReportStatus {
   open
   resolved
   escalated
-}
-
-enum VerificationStatus {
-  unverified
-  pending
-  verified
-  rejected
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -99,70 +109,138 @@ model PasswordResetToken {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// ARTISANS
+// ARTISANS (normalized onboarding / verification)
 // ─────────────────────────────────────────────────────────────────────────
 
 model ArtisanProfile {
-  id          String              @id @default(uuid())
-  userId      String              @unique
-  businessName String?
-  bio         String?
-  skills      String[]            @default([])
-  categories  String[]            @default([])
-  pricingFrom Decimal?            @db.Decimal(10, 2)
-  location    String?
+  id                String           @id @default(uuid())
+  userId            String           @unique
+  businessName      String?
+  bio               String?
+  pricingFrom       Decimal?         @db.Decimal(10, 2)
+  location          String?
   yearsOfExperience Int?
-  rating      Decimal             @default(0) @db.Decimal(3, 2)
-  reviewCount Int                 @default(0)
-  availability Json?
-  profileImageUrl String?
-  portfolio   PortfolioItem[]
-  services    Service[]
-  verification VerificationStatus @default(unverified)
-  isSuspended Boolean             @default(false)
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  rating            Decimal          @default(0) @db.Decimal(3, 2)
+  reviewCount       Int              @default(0)
+  profileImageUrl   String?
+  isSuspended       Boolean          @default(false)
+  status            ApplicationStatus @default(PENDING_PROFILE)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills        ArtisanSkill[]
+  categories    ArtisanCategory[]
+  services      ArtisanService[]
+  portfolio     ArtisanPortfolio[]
+  availability  ArtisanAvailability[]
+  verification  ArtisanVerification?
+  applicationHistory ApplicationStatusHistory[]
+
   bookings Booking[] @relation("ArtisanBookings")
   reviews  Review[]  @relation("ArtisanReviews")
   savedBy  SavedArtisan[]
 
-  @@index([verification])
-  @@index([categories])
+  @@index([status])
   @@map("artisan_profiles")
 }
 
-model PortfolioItem {
-  id         String   @id @default(uuid())
-  artisanId  String
-  imageUrl   String
-  title      String
-  description String?
-  createdAt  DateTime @default(now())
+model ArtisanSkill {
+  id        String         @id @default(uuid())
+  artisanId String
+  name      String
+  artisan   ArtisanProfile @relation(fields: [artisanId], references: [id], onDelete: Cascade)
 
-  artisan ArtisanProfile @relation(fields: [artisanId], references: [id], onDelete: Cascade)
-
-  @@index([artisanId])
-  @@map("portfolio_items")
+  @@unique([artisanId, name])
+  @@index([name])
+  @@map("artisan_skills")
 }
 
-model Service {
-  id              String   @id @default(uuid())
+model ArtisanCategory {
+  id        String         @id @default(uuid())
+  artisanId String
+  name      String
+  artisan   ArtisanProfile @relation(fields: [artisanId], references: [id], onDelete: Cascade)
+
+  @@unique([artisanId, name])
+  @@index([name])
+  @@map("artisan_categories")
+}
+
+model ArtisanService {
+  id              String         @id @default(uuid())
   artisanId       String
   title           String
   description     String
-  price           Decimal  @db.Decimal(10, 2)
+  price           Decimal        @db.Decimal(10, 2)
   durationMinutes Int
   category        String
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   artisan ArtisanProfile @relation(fields: [artisanId], references: [id], onDelete: Cascade)
 
   @@index([artisanId])
-  @@map("services")
+  @@map("artisan_services")
+}
+
+model ArtisanPortfolio {
+  id          String         @id @default(uuid())
+  artisanId   String
+  imageUrl    String
+  title       String
+  description String?
+  createdAt   DateTime       @default(now())
+
+  artisan ArtisanProfile @relation(fields: [artisanId], references: [id], onDelete: Cascade)
+
+  @@index([artisanId])
+  @@map("artisan_portfolio")
+}
+
+model ArtisanAvailability {
+  id        String         @id @default(uuid())
+  artisanId String
+  day       String
+  startTime String
+  endTime   String
+
+  artisan ArtisanProfile @relation(fields: [artisanId], references: [id], onDelete: Cascade)
+
+  @@index([artisanId])
+  @@map("artisan_availability")
+}
+
+model ArtisanVerification {
+  id                  String                 @id @default(uuid())
+  artisanId           String                 @unique
+  institution         String
+  studentIdNumber     String
+  verificationImageUrl String
+  reviewStatus        VerificationReviewStatus @default(PENDING)
+  reviewNotes         String?
+  reviewedBy          String?
+  reviewedAt          DateTime?
+  submittedAt         DateTime               @default(now())
+
+  artisan ArtisanProfile @relation(fields: [artisanId], references: [id], onDelete: Cascade)
+
+  @@map("artisan_verifications")
+}
+
+model ApplicationStatusHistory {
+  id        String           @id @default(uuid())
+  artisanId String
+  status    ApplicationStatus
+  note      String?
+  changedBy String?
+  createdAt DateTime         @default(now())
+
+  artisan ArtisanProfile @relation(fields: [artisanId], references: [id], onDelete: Cascade)
+
+  @@index([artisanId])
+  @@map("application_status_history")
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -194,6 +272,29 @@ model SavedArtisan {
   @@unique([studentId, artisanId])
   @@index([artisanId])
   @@map("saved_artisans")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// CATALOGS
+// ─────────────────────────────────────────────────────────────────────────
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("categories")
+}
+
+model Skill {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@map("skills")
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -246,21 +347,7 @@ model Review {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// CATEGORIES
-// ─────────────────────────────────────────────────────────────────────────
-
-model Category {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("categories")
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// REPORTS
+// CATEGORIES / REPORTS
 // ─────────────────────────────────────────────────────────────────────────
 
 model Report {

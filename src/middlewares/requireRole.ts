@@ -1,27 +1,8 @@
-import { NextFunction, Request, Response } from 'express';
+// Backwards-compatible aliases. The canonical implementation now lives in
+// `authorize.ts`. Mobile modules continue to import `requireRole` /
+// `requireAdmin`, so existing authorization logic is unchanged.
 import { Role } from '@prisma/client';
-import { ApiError } from '../utils/ApiError';
+import { authorize } from './authorize';
 
-/**
- * Restricts a route to one or more roles. Must run after requireAuth.
- *
- * Usage: router.get('/admin/stats', requireAuth, requireRole(['admin', 'super_admin']), handler)
- */
-export const requireRole = (allowedRoles: Role[]) => {
-  return (req: Request, _res: Response, next: NextFunction): void => {
-    if (!req.user) {
-      throw ApiError.unauthorized();
-    }
-
-    if (!allowedRoles.includes(req.user.role)) {
-      throw ApiError.forbidden(
-        `This action requires one of the following roles: ${allowedRoles.join(', ')}`
-      );
-    }
-
-    next();
-  };
-};
-
-/** Convenience: admin or super_admin */
-export const requireAdmin = requireRole(['admin', 'super_admin']);
+export { authorize as requireRole };
+export const requireAdmin = authorize([Role.admin, Role.super_admin]);

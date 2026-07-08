@@ -21,6 +21,9 @@ export const SOCKET_EVENTS = {
   ARTISAN_VERIFIED: 'artisan_verified',
   REPORT_SUBMITTED: 'report_submitted',
   REVIEW_FLAGGED: 'review_flagged',
+
+  // Admin-initiated notifications
+  NOTIFICATION_SENT: 'notification_sent',
 } as const;
 
 export type SocketEvent = (typeof SOCKET_EVENTS)[keyof typeof SOCKET_EVENTS];

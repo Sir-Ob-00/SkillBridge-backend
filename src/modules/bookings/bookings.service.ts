@@ -1,4 +1,4 @@
-import { BookingStatus, Prisma, Role } from '@prisma/client';
+import { BookingStatus, Prisma, Role, ApplicationStatus } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { ApiError } from '../../utils/ApiError';
 import { parsePagination } from '../../utils/pagination';
@@ -52,6 +52,11 @@ export const bookingsService = {
 
     if (artisan.isSuspended) {
       throw ApiError.badRequest('This artisan is currently unavailable for bookings.');
+    }
+
+    // Phase 7: only ACTIVE artisans can receive bookings.
+    if (artisan.status !== ApplicationStatus.ACTIVE) {
+      throw ApiError.badRequest('This artisan is not yet approved to receive bookings.');
     }
 
     let serviceTitle = input.serviceTitle;
