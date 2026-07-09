@@ -32,11 +32,31 @@ enum ReportStatus {
   escalated
 }
 
-enum VerificationStatus {
-  unverified
-  pending
-  verified
-  rejected
+enum ApplicationStatus {
+  EMAIL_VERIFICATION_PENDING
+  PENDING_PROFILE
+  PENDING_REVIEW
+  UNDER_REVIEW
+  CHANGES_REQUESTED
+  ACTIVE
+  REJECTED
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum VerificationReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REVISION_REQUESTED
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -55,18 +75,18 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  artisanProfile ArtisanProfile?
-  studentProfile StudentProfile?
-
-  refreshTokens   RefreshToken[]
-  bookingsAsStudent Booking[] @relation("StudentBookings")
-  reviewsWritten    Review[] @relation("StudentReviews")
-
-  reportsFiled   Report[] @relation("ReporterReports")
-  reportsAgainst Report[] @relation("TargetReports")
-
-  messagesSent     Message[] @relation("SentMessages")
-  messagesReceived Message[] @relation("ReceivedMessages")
+  artisanProfile    ArtisanProfile?    @relation("ArtisanOwner")
+  reviewedProfiles  ArtisanProfile[]   @relation("ArtisanReviewer")
+  studentProfile    StudentProfile?
+  verification      ArtisanVerification?
+  refreshTokens     RefreshToken[]
+  bookingsAsStudent Booking[]          @relation("StudentBookings")
+  reviewsWritten    Review[]           @relation("StudentReviews")
+  reportsFiled      Report[]           @relation("ReporterReports")
+  reportsAgainst    Report[]           @relation("TargetReports")
+  messagesSent      Message[]          @relation("SentMessages")
+  messagesReceived  Message[]          @relation("ReceivedMessages")
+  statusChanges     ArtisanStatusChange[]
 
   @@index([role])
   @@map("users")
@@ -103,63 +123,155 @@ model PasswordResetToken {
 // ─────────────────────────────────────────────────────────────────────────
 
 model ArtisanProfile {
-  id          String              @id @default(uuid())
-  userId      String              @unique
-  businessName String?
-  bio         String?
-  skills      String[]            @default([])
-  categories  String[]            @default([])
-  pricingFrom Decimal?            @db.Decimal(10, 2)
-  location    String?
-  rating      Decimal             @default(0) @db.Decimal(3, 2)
-  reviewCount Int                 @default(0)
-  availability Json?
-  portfolio   PortfolioItem[]
-  services    Service[]
-  verification VerificationStatus @default(unverified)
-  isSuspended Boolean             @default(false)
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  id                String            @id @default(uuid())
+  userId            String            @unique
+  businessName      String?
+  bio               String?
+  pricingFrom       Decimal?          @db.Decimal(10, 2)
+  location          String?
+  rating            Decimal           @default(0) @db.Decimal(3, 2)
+  reviewCount       Int               @default(0)
+  applicationStatus ApplicationStatus @default(PENDING_PROFILE)
+  isSuspended       Boolean           @default(false)
 
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bookings Booking[] @relation("ArtisanBookings")
-  reviews  Review[]  @relation("ArtisanReviews")
-  savedBy  SavedArtisan[]
+  rejectionReason   String?
+  reviewNotes       String?
+  reviewedByAdminId String?
+  reviewedAt        DateTime?
+  submittedAt       DateTime?
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  verification String? @default("unverified")
+
+  user            User                @relation("ArtisanOwner", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedByAdmin  User?               @relation("ArtisanReviewer", fields: [reviewedByAdminId], references: [id])
+  portfolio        ArtisanPortfolio[]
+  services         ArtisanService[]
+  availability     ArtisanAvailability[]
+  skills           ArtisanSkill[]
+  categories       ArtisanCategory[]
+  verificationDoc  ArtisanVerification?
+  bookings         Booking[]           @relation("ArtisanBookings")
+  reviews          Review[]            @relation("ArtisanReviews")
+  savedBy         SavedArtisan[]
+  statusHistory    ArtisanStatusChange[]
+
+  @@index([applicationStatus])
   @@index([verification])
-  @@index([categories])
+  @@index([userId])
   @@map("artisan_profiles")
 }
 
-model PortfolioItem {
-  id         String   @id @default(uuid())
-  artisanId  String
-  imageUrl   String
-  caption    String?
-  createdAt  DateTime @default(now())
+model ArtisanVerification {
+  id                    String                  @id @default(uuid())
+  artisanProfileId      String                  @unique
+  institution           String
+  studentIdNumber       String
+  verificationImageUrl  String
+  reviewStatus          VerificationReviewStatus @default(PENDING)
+  reviewNotes           String?
+  reviewedByUserId      String?   @unique
+  reviewedAt            DateTime?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
 
-  artisan ArtisanProfile @relation(fields: [artisanId], references: [id], onDelete: Cascade)
+  artisanProfile ArtisanProfile @relation(fields: [artisanProfileId], references: [id], onDelete: Cascade)
+  reviewedBy     User?           @relation(fields: [reviewedByUserId], references: [id])
 
-  @@index([artisanId])
-  @@map("portfolio_items")
+  @@index([artisanProfileId])
+  @@map("artisan_verifications")
 }
 
-model Service {
+model ArtisanPortfolio {
   id              String   @id @default(uuid())
-  artisanId       String
+  artisanProfileId String
+  imageUrl       String
+  caption        String?
+  createdAt      DateTime @default(now())
+
+  artisanProfile ArtisanProfile @relation(fields: [artisanProfileId], references: [id], onDelete: Cascade)
+
+  @@index([artisanProfileId])
+  @@map("artisan_portfolio")
+}
+
+model ArtisanAvailability {
+  id              String       @id @default(uuid())
+  artisanProfileId String
+  day             DayOfWeek
+  startTime       String
+  endTime         String
+  createdAt       DateTime     @default(now())
+
+  artisanProfile ArtisanProfile @relation(fields: [artisanProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([artisanProfileId, day])
+  @@index([artisanProfileId])
+  @@map("artisan_availability")
+}
+
+model ArtisanSkill {
+  id              String   @id @default(uuid())
+  artisanProfileId String
+  name            String
+  createdAt       DateTime @default(now())
+
+  artisanProfile ArtisanProfile @relation(fields: [artisanProfileId], references: [id], onDelete: Cascade)
+
+  @@index([artisanProfileId])
+  @@map("artisan_skills")
+}
+
+model ArtisanCategory {
+  id              String   @id @default(uuid())
+  artisanProfileId String
+  categoryId      String
+  createdAt       DateTime @default(now())
+
+  artisanProfile ArtisanProfile @relation(fields: [artisanProfileId], references: [id], onDelete: Cascade)
+  category        Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([artisanProfileId, categoryId])
+  @@index([artisanProfileId])
+  @@map("artisan_categories")
+}
+
+model ArtisanService {
+  id              String   @id @default(uuid())
+  artisanProfileId String
   title           String
   description     String
   price           Decimal  @db.Decimal(10, 2)
   durationMinutes Int
-  category        String
+  categoryName    String
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  artisan ArtisanProfile @relation(fields: [artisanId], references: [id], onDelete: Cascade)
+  artisanProfile ArtisanProfile @relation(fields: [artisanProfileId], references: [id], onDelete: Cascade)
 
-  @@index([artisanId])
-  @@map("services")
+  @@index([artisanProfileId])
+  @@map("artisan_services")
+}
+
+model ArtisanStatusChange {
+  id                String          @id @default(uuid())
+  artisanProfileId  String
+  fromStatus        ApplicationStatus?
+  toStatus          ApplicationStatus
+  changedByUserId   String?
+  notes             String?
+  createdAt         DateTime        @default(now())
+
+  artisanProfile ArtisanProfile @relation(fields: [artisanProfileId], references: [id], onDelete: Cascade)
+  changedBy      User?           @relation(fields: [changedByUserId], references: [id])
+
+  @@index([artisanProfileId])
+  @@index([createdAt])
+  @@index([toStatus])
+  @@map("application_status_history")
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -198,16 +310,16 @@ model SavedArtisan {
 // ─────────────────────────────────────────────────────────────────────────
 
 model Booking {
-  id            String        @id @default(uuid())
+  id            String         @id @default(uuid())
   studentId     String
   artisanId     String
   serviceTitle  String
-  price         Decimal       @db.Decimal(10, 2)
-  status        BookingStatus @default(pending)
+  price         Decimal        @db.Decimal(10, 2)
+  status        BookingStatus  @default(pending)
   scheduledTime DateTime
   notes         String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   student User           @relation("StudentBookings", fields: [studentId], references: [id], onDelete: Cascade)
   artisan ArtisanProfile @relation("ArtisanBookings", fields: [artisanId], references: [id], onDelete: Cascade)
@@ -252,6 +364,8 @@ model Category {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  artisans ArtisanCategory[]
 
   @@map("categories")
 }

@@ -3,7 +3,7 @@ import { prisma } from '../../config/prisma';
 import { ApiError } from '../../utils/ApiError';
 import { parsePagination } from '../../utils/pagination';
 import { buildPaginationMeta } from '../../utils/apiResponse';
-import { artisansService } from '../artisans/artisans.service';
+import { artisansService } from '../mobile/artisans/artisans.service';
 import { emitToAdmins } from '../../sockets/io';
 import { SOCKET_EVENTS } from '../../sockets/events';
 import { CreateReviewInput, ListReviewsQuery } from './reviews.validators';

@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { studentsController } from './students.controller';
-import { requireAuth } from '../../middlewares/requireAuth';
-import { requireRole } from '../../middlewares/requireRole';
-import { validate } from '../../middlewares/validate';
+import { requireAuth } from '../../../middlewares/requireAuth';
+import { requireRole } from '../../../middlewares/requireRole';
+import { validate } from '../../../middlewares/validate';
 import { saveArtisanSchema, artisanIdParamSchema } from './students.validators';
 
 const router = Router();

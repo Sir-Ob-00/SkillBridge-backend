@@ -1,11 +1,10 @@
 import { Request, Response } from 'express';
-import { VerificationStatus } from '@prisma/client';
-import { asyncHandler } from '../../utils/asyncHandler';
-import { sendSuccess, sendPaginated } from '../../utils/apiResponse';
-import { ApiError } from '../../utils/ApiError';
+import { asyncHandler } from '../../../utils/asyncHandler';
+import { sendSuccess, sendPaginated } from '../../../utils/apiResponse';
+import { ApiError } from '../../../utils/ApiError';
 import { artisansService } from './artisans.service';
-import { reviewsService } from '../reviews/reviews.service';
-import { ListReviewsQuery } from '../reviews/reviews.validators';
+import { reviewsService } from '../../reviews/reviews.service';
+import { ListReviewsQuery } from '../../reviews/reviews.validators';
 import {
   UpsertArtisanProfileInput,
   AddPortfolioItemInput,
@@ -15,6 +14,9 @@ import {
   CreateServiceInput,
   UpdateServiceInput,
   ServiceIdParam,
+  ApproveArtisanInput,
+  RejectArtisanInput,
+  RequestChangesInput,
 } from './artisans.validators';
 
 export const artisansController = {
@@ -58,8 +60,6 @@ export const artisansController = {
     return sendSuccess(res, null, result.message);
   }),
 
-  // ── Services ──────────────────────────────────────────────────────
-
   listServices: asyncHandler(async (req: Request<ArtisanIdParam>, res: Response) => {
     const services = await artisansService.listServices(req.params.id);
     return sendSuccess(res, services);
@@ -87,8 +87,6 @@ export const artisansController = {
     return sendSuccess(res, null, result.message);
   }),
 
-  // ── Availability ──────────────────────────────────────────────────
-
   getAvailability: asyncHandler(async (req: Request<ArtisanIdParam>, res: Response) => {
     const availability = await artisansService.getAvailability(req.params.id);
     return sendSuccess(res, availability);
@@ -102,22 +100,20 @@ export const artisansController = {
   ),
 
   updateAvailability: asyncHandler(
-    async (req: Request<ArtisanIdParam, unknown, UpsertArtisanProfileInput>, res: Response) => {
+    async (req: Request<ArtisanIdParam, unknown, any>, res: Response) => {
       if (!req.user) throw ApiError.unauthorized();
       const availability = await artisansService.updateAvailability(req.user.id, req.body.availability);
       return sendSuccess(res, availability, 'Availability updated.');
     }
   ),
 
-  // ── Admin moderation ──────────────────────────────────────────────
-
   verify: asyncHandler(async (req: Request<ArtisanIdParam>, res: Response) => {
-    const profile = await artisansService.setVerification(req.params.id, VerificationStatus.verified);
+    const profile = await artisansService.setVerification(req.params.id, 'verified');
     return sendSuccess(res, profile, 'Artisan verified.');
   }),
 
   reject: asyncHandler(async (req: Request<ArtisanIdParam>, res: Response) => {
-    const profile = await artisansService.setVerification(req.params.id, VerificationStatus.rejected);
+    const profile = await artisansService.setVerification(req.params.id, 'rejected');
     return sendSuccess(res, profile, 'Artisan rejected.');
   }),
 
@@ -129,5 +125,20 @@ export const artisansController = {
   unsuspend: asyncHandler(async (req: Request<ArtisanIdParam>, res: Response) => {
     const profile = await artisansService.setSuspended(req.params.id, false);
     return sendSuccess(res, profile, 'Artisan reinstated.');
+  }),
+
+  approve: asyncHandler(async (req: Request<ArtisanIdParam, unknown, ApproveArtisanInput>, res: Response) => {
+    const profile = await artisansService.approveArtisan(req.params.id, req.user!.id, req.body.notes);
+    return sendSuccess(res, profile, 'Artisan application approved.');
+  }),
+
+  rejectApplication: asyncHandler(async (req: Request<ArtisanIdParam, unknown, RejectArtisanInput>, res: Response) => {
+    const profile = await artisansService.rejectArtisan(req.params.id, req.user!.id, req.body.reason);
+    return sendSuccess(res, profile, 'Artisan application rejected.');
+  }),
+
+  requestChanges: asyncHandler(async (req: Request<ArtisanIdParam, unknown, RequestChangesInput>, res: Response) => {
+    const profile = await artisansService.requestChangesArtisan(req.params.id, req.user!.id, req.body.changes);
+    return sendSuccess(res, profile, 'Changes requested from artisan.');
   }),
 };

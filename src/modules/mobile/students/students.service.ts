@@ -1,5 +1,5 @@
-import { prisma } from '../../config/prisma';
-import { ApiError } from '../../utils/ApiError';
+import { prisma } from '../../../config/prisma';
+import { ApiError } from '../../../utils/ApiError';
 
 const ARTISAN_INCLUDE = {
   user: {

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { asyncHandler } from '../../utils/asyncHandler';
-import { sendSuccess } from '../../utils/apiResponse';
-import { ApiError } from '../../utils/ApiError';
+import { asyncHandler } from '../../../utils/asyncHandler';
+import { sendSuccess } from '../../../utils/apiResponse';
+import { ApiError } from '../../../utils/ApiError';
 import { studentsService } from './students.service';
 import { SaveArtisanInput, ArtisanIdParam } from './students.validators';
 

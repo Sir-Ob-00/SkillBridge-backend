@@ -54,16 +54,20 @@ export const bookingsService = {
       throw ApiError.badRequest('This artisan is currently unavailable for bookings.');
     }
 
+    if (artisan.applicationStatus !== 'ACTIVE') {
+      throw ApiError.badRequest('This artisan is not yet active and cannot accept bookings.');
+    }
+
     let serviceTitle = input.serviceTitle;
     let price = input.price;
 
     if (input.serviceId) {
-      const service = await prisma.service.findUnique({ where: { id: input.serviceId } });
-      if (!service || service.artisanId !== artisan.id || !service.isActive) {
+      const svc = await prisma.artisanService.findUnique({ where: { id: input.serviceId } });
+      if (!svc || svc.artisanProfileId !== artisan.id || !svc.isActive) {
         throw ApiError.notFound('Service not found for this artisan.');
       }
-      serviceTitle = service.title;
-      price = Number(service.price);
+      serviceTitle = svc.title;
+      price = Number(svc.price);
     }
 
     if (!serviceTitle || price === undefined) {

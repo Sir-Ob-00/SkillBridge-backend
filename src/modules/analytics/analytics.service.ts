@@ -1,10 +1,17 @@
-import { BookingStatus, Role, VerificationStatus } from '@prisma/client';
+import { BookingStatus, Role, ApplicationStatus } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { BookingTrendsQuery } from './analytics.validators';
 
 interface DailyTrendRow {
   date: string;
   count: bigint | number;
+}
+
+interface CategoryCountRow {
+  categoryName: string;
+  _count: {
+    categoryName: number;
+  };
 }
 
 export const analyticsService = {
@@ -24,7 +31,7 @@ export const analyticsService = {
       prisma.user.count({ where: { role: Role.student } }),
       prisma.user.count({ where: { role: Role.artisan } }),
       prisma.user.count({ where: { role: { in: [Role.admin, Role.super_admin] } } }),
-      prisma.artisanProfile.count({ where: { verification: VerificationStatus.pending } }),
+      prisma.artisanProfile.count({ where: { applicationStatus: ApplicationStatus.PENDING_REVIEW } }),
       prisma.booking.count(),
       prisma.booking.groupBy({ by: ['status'], _count: { status: true } }),
       prisma.review.aggregate({ _avg: { rating: true }, _count: { rating: true } }),
@@ -76,15 +83,15 @@ export const analyticsService = {
 
   /** Top categories by number of bookable services listed. */
   async getTopCategories(limit = 10) {
-    const rows = await prisma.service.groupBy({
-      by: ['category'],
+    const rows = await prisma.artisanService.groupBy({
+      by: ['categoryName'],
       where: { isActive: true },
-      _count: { category: true },
-      orderBy: { _count: { category: 'desc' } },
+      _count: { categoryName: true },
+      orderBy: { _count: { categoryName: 'desc' } },
       take: limit,
     });
 
-    return rows.map((row) => ({ category: row.category, count: row._count.category }));
+    return rows.map((row) => ({ category: row.categoryName, count: row._count.categoryName }));
   },
 
   async getAverageRatings() {

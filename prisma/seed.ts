@@ -1,4 +1,4 @@
-import { Role, VerificationStatus } from '@prisma/client';
+import { Role, ApplicationStatus, VerificationReviewStatus } from '@prisma/client';
 import { prisma } from '../src/config/prisma';
 import { hashPassword } from '../src/utils/password';
 import { DEFAULT_CATEGORIES } from '../src/modules/categories/categories.service';
@@ -41,7 +41,7 @@ async function main() {
     create: { userId: student.id, campus: 'KNUST' },
   });
 
-  console.log('Seeding sample artisan...');
+  console.log('Seeding sample artisan (approved)...');
   const artisanPassword = await hashPassword('Artisan123!');
   const artisanUser = await prisma.user.upsert({
     where: { email: 'artisan@skillbridge.dev' },
@@ -61,26 +61,70 @@ async function main() {
       userId: artisanUser.id,
       businessName: "Kofi's Barber Shop",
       bio: 'Professional campus barber with 5+ years of experience.',
-      skills: ['Haircuts', 'Beard trimming', 'Hair styling'],
-      categories: ['Barbering'],
       pricingFrom: 20,
       location: 'Near Unity Hall',
-      verification: VerificationStatus.verified,
+      applicationStatus: ApplicationStatus.ACTIVE,
+      verification: 'verified',
+      submittedAt: new Date('2025-01-01'),
+      reviewedAt: new Date('2025-01-02'),
+      reviewedByAdminId: (await prisma.user.findUnique({ where: { email: 'admin@skillbridge.dev' } }))!.id,
+    },
+  });
+
+  await prisma.artisanSkill.createMany({
+    data: [
+      { artisanProfileId: artisanProfile.id, name: 'Haircuts' },
+      { artisanProfileId: artisanProfile.id, name: 'Beard trimming' },
+      { artisanProfileId: artisanProfile.id, name: 'Hair styling' },
+    ],
+    skipDuplicates: true,
+  });
+
+  const barberingCategory = await prisma.category.findFirst({ where: { name: 'Barbering' } });
+  if (barberingCategory) {
+    await prisma.artisanCategory.createMany({
+      data: [{ artisanProfileId: artisanProfile.id, categoryId: barberingCategory.id }],
+      skipDuplicates: true,
+    });
+  }
+
+  await prisma.artisanAvailability.createMany({
+    data: [
+      { artisanProfileId: artisanProfile.id, day: 'MONDAY', startTime: '09:00', endTime: '17:00' },
+      { artisanProfileId: artisanProfile.id, day: 'TUESDAY', startTime: '09:00', endTime: '17:00' },
+      { artisanProfileId: artisanProfile.id, day: 'WEDNESDAY', startTime: '09:00', endTime: '17:00' },
+      { artisanProfileId: artisanProfile.id, day: 'THURSDAY', startTime: '09:00', endTime: '17:00' },
+      { artisanProfileId: artisanProfile.id, day: 'FRIDAY', startTime: '09:00', endTime: '17:00' },
+    ],
+    skipDuplicates: true,
+  });
+
+  await prisma.artisanVerification.upsert({
+    where: { artisanProfileId: artisanProfile.id },
+    update: {},
+    create: {
+      artisanProfileId: artisanProfile.id,
+      institution: 'KNUST',
+      studentIdNumber: 'STU-2024-001',
+      verificationImageUrl: 'https://example.com/verification.jpg',
+      reviewStatus: VerificationReviewStatus.APPROVED,
+      reviewedAt: new Date('2025-01-02'),
+      reviewedByUserId: (await prisma.user.findUnique({ where: { email: 'admin@skillbridge.dev' } }))!.id,
     },
   });
 
   console.log('Seeding sample service...');
-  await prisma.service.upsert({
+  await prisma.artisanService.upsert({
     where: { id: '00000000-0000-0000-0000-000000000001' },
     update: {},
     create: {
       id: '00000000-0000-0000-0000-000000000001',
-      artisanId: artisanProfile.id,
+      artisanProfileId: artisanProfile.id,
       title: 'Classic Haircut',
       description: 'A clean, classic haircut tailored to your style.',
       price: 25,
       durationMinutes: 30,
-      category: 'Barbering',
+      categoryName: 'Barbering',
     },
   });
 

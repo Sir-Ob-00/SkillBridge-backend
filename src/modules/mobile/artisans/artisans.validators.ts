@@ -34,7 +34,15 @@ export const addPortfolioItemSchema = z.object({
 export const listArtisansQuerySchema = z.object({
   query: z.string().trim().optional(),
   category: z.string().trim().optional(),
-  verification: z.enum(['unverified', 'pending', 'verified', 'rejected']).optional(),
+  applicationStatus: z.enum([
+    'EMAIL_VERIFICATION_PENDING',
+    'PENDING_PROFILE',
+    'PENDING_REVIEW',
+    'UNDER_REVIEW',
+    'CHANGES_REQUESTED',
+    'ACTIVE',
+    'REJECTED',
+  ]).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
@@ -63,9 +71,25 @@ export const serviceIdParamSchema = z.object({
   serviceId: z.string().uuid('Invalid service id'),
 });
 
+export const approveArtisanSchema = z.object({
+  notes: z.string().trim().max(1000).optional(),
+});
+
+export const rejectArtisanSchema = z.object({
+  reason: z.string().trim().min(5, 'Reason must be at least 5 characters').max(2000),
+});
+
+export const requestChangesSchema = z.object({
+  changes: z.string().trim().min(5, 'Requested changes must be at least 5 characters').max(2000),
+});
+
 export type CreateServiceInput = z.infer<typeof createServiceSchema>;
 export type UpdateServiceInput = z.infer<typeof updateServiceSchema>;
 export type ServiceIdParam = z.infer<typeof serviceIdParamSchema>;
+
+export type ApproveArtisanInput = z.infer<typeof approveArtisanSchema>;
+export type RejectArtisanInput = z.infer<typeof rejectArtisanSchema>;
+export type RequestChangesInput = z.infer<typeof requestChangesSchema>;
 
 export type UpsertArtisanProfileInput = z.infer<typeof upsertArtisanProfileSchema>;
 export type AddPortfolioItemInput = z.infer<typeof addPortfolioItemSchema>;
