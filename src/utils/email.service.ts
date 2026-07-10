@@ -66,7 +66,15 @@ export const sendOTPEmail = async (email: string, otp: string): Promise<void> =>
   try {
     await transporter.sendMail(mailOptions);
   } catch (error) {
-    console.error('Failed to send OTP email:', error);
+    const e = error as { message?: string; code?: string; command?: string; response?: string };
+    // Surface the underlying SMTP failure in the server logs (not to the client)
+    // so production email issues are diagnosable.
+    console.error('[email] OTP send failed:', {
+      message: e.message,
+      code: e.code,
+      command: e.command,
+      response: e.response,
+    });
     throw ApiError.internal('Failed to send verification email. Please try again later.');
   }
 };
