@@ -26,9 +26,15 @@ export const env = {
   RATE_LIMIT_WINDOW_MS: Number(process.env.RATE_LIMIT_WINDOW_MS ?? 900000),
   RATE_LIMIT_MAX: Number(process.env.RATE_LIMIT_MAX ?? 200),
 
-  CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
-  CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
-  CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
+  CLOUDINARY_CLOUD_NAME: required('CLOUDINARY_CLOUD_NAME'),
+  CLOUDINARY_API_KEY: required('CLOUDINARY_API_KEY'),
+  CLOUDINARY_API_SECRET: required('CLOUDINARY_API_SECRET'),
+
+  EMAIL_HOST: process.env.EMAIL_HOST ?? '',
+  EMAIL_PORT: Number(process.env.EMAIL_PORT ?? 587),
+  EMAIL_USER: process.env.EMAIL_USER ?? '',
+  EMAIL_PASS: process.env.EMAIL_PASS ?? '',
+  EMAIL_FROM: process.env.EMAIL_FROM ?? 'noreply@skillbridge.dev',
 
   isProduction: process.env.NODE_ENV === 'production',
 };

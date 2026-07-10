@@ -1,12 +1,10 @@
 import { Router } from 'express';
 import { dashboardController } from './dashboard.controller';
-import { authenticate } from '../../../middlewares/authenticate';
-import { adminOnly } from '../../../middlewares/adminOnly';
+import { requireAuth } from '../../../middlewares/requireAuth';
+import { requireAdmin } from '../../../middlewares/requireRole';
 
 const router = Router();
-
-router.use(authenticate, adminOnly);
-
-router.get('/', dashboardController.getDashboard);
-
+router.use(requireAuth);
+router.use(requireAdmin);
+router.get('/', dashboardController.getStats);
 export const dashboardRouter = router;

@@ -1,47 +1,36 @@
 import { prisma } from '../../../config/prisma';
-import { analyticsService } from '../../analytics/analytics.service';
-
-const RECENT_LIMIT = 5;
 
 export const dashboardService = {
-  async getDashboard() {
+  async getStats() {
     const [
-      overview,
-      recentBookings,
-      recentReports,
+      totalUsers,
+      totalStudents,
+      totalArtisans,
+      totalAdmins,
+      totalBookings,
       pendingVerifications,
+      totalRevenue,
     ] = await Promise.all([
-      analyticsService.getOverview(),
-      prisma.booking.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: RECENT_LIMIT,
-        include: {
-          student: { select: { id: true, name: true } },
-          artisan: { include: { user: { select: { id: true, name: true } } } },
-        },
-      }),
-      prisma.report.findMany({
-        where: { status: 'open' },
-        orderBy: { createdAt: 'desc' },
-        take: RECENT_LIMIT,
-        include: {
-          reporter: { select: { id: true, name: true } },
-          target: { select: { id: true, name: true } },
-        },
-      }),
-      prisma.artisanProfile.findMany({
-        where: { status: 'PENDING_REVIEW' },
-        orderBy: { createdAt: 'desc' },
-        take: RECENT_LIMIT,
-        include: { user: { select: { id: true, name: true, email: true } } },
+      prisma.user.count(),
+      prisma.user.count({ where: { role: 'student' } }),
+      prisma.user.count({ where: { role: 'artisan' } }),
+      prisma.user.count({ where: { role: { in: ['admin', 'super_admin'] } } }),
+      prisma.booking.count(),
+      prisma.artisanProfile.count({ where: { applicationStatus: 'PENDING_REVIEW' } }),
+      prisma.booking.aggregate({
+        where: { status: 'completed' },
+        _sum: { price: true },
       }),
     ]);
 
     return {
-      ...overview,
-      recentBookings,
-      recentReports,
+      totalUsers,
+      totalStudents,
+      totalArtisans,
+      totalAdmins,
+      totalBookings,
       pendingVerifications,
+      totalRevenue: Number(totalRevenue._sum.price ?? 0),
     };
   },
 };

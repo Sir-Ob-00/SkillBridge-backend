@@ -1,4 +1,4 @@
-import { BookingStatus, Prisma, Role, ApplicationStatus } from '@prisma/client';
+import { BookingStatus, Prisma, Role } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { ApiError } from '../../utils/ApiError';
 import { parsePagination } from '../../utils/pagination';
@@ -13,10 +13,10 @@ import {
 const BOOKING_INCLUDE = {
   artisan: {
     include: {
-      user: { select: { id: true, name: true, avatarUrl: true } },
+      user: { select: { id: true, name: true, profileImageUrl: true } },
     },
   },
-  student: { select: { id: true, name: true, avatarUrl: true } },
+  student: { select: { id: true, name: true, profileImageUrl: true } },
 } satisfies Prisma.BookingInclude;
 
 /** Valid status transitions, keyed by current status. */
@@ -54,21 +54,20 @@ export const bookingsService = {
       throw ApiError.badRequest('This artisan is currently unavailable for bookings.');
     }
 
-    // Phase 7: only ACTIVE artisans can receive bookings.
-    if (artisan.status !== ApplicationStatus.ACTIVE) {
-      throw ApiError.badRequest('This artisan is not yet approved to receive bookings.');
+    if (artisan.applicationStatus !== 'ACTIVE') {
+      throw ApiError.badRequest('This artisan is not yet active and cannot accept bookings.');
     }
 
     let serviceTitle = input.serviceTitle;
     let price = input.price;
 
     if (input.serviceId) {
-      const service = await prisma.service.findUnique({ where: { id: input.serviceId } });
-      if (!service || service.artisanId !== artisan.id || !service.isActive) {
+      const svc = await prisma.artisanService.findUnique({ where: { id: input.serviceId } });
+      if (!svc || svc.artisanProfileId !== artisan.id || !svc.isActive) {
         throw ApiError.notFound('Service not found for this artisan.');
       }
-      serviceTitle = service.title;
-      price = Number(service.price);
+      serviceTitle = svc.title;
+      price = Number(svc.price);
     }
 
     if (!serviceTitle || price === undefined) {
@@ -155,6 +154,13 @@ export const bookingsService = {
     const isAdmin = role === Role.admin || role === Role.super_admin;
     const isArtisanOwner = role === Role.artisan && booking.artisan.userId === userId;
     const isStudentOwner = role === Role.student && booking.studentId === userId;
+
+    if (isArtisanOwner && !isAdmin) {
+      const artisan = await prisma.artisanProfile.findUnique({ where: { id: booking.artisanId } });
+      if (!artisan || artisan.applicationStatus !== 'ACTIVE' || artisan.isSuspended) {
+        throw ApiError.forbidden('Your artisan profile must be active to manage bookings.');
+      }
+    }
 
     // Role-based transition rules:
     // - Artisans: accept / reject / start (in_progress) / complete

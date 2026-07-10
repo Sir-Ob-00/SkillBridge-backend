@@ -2,7 +2,6 @@ import { Role, ApplicationStatus, VerificationReviewStatus } from '@prisma/clien
 import { prisma } from '../src/config/prisma';
 import { hashPassword } from '../src/utils/password';
 import { DEFAULT_CATEGORIES } from '../src/modules/categories/categories.service';
-import { DEFAULT_SKILLS } from '../src/modules/skills/skills.service';
 
 async function main() {
   console.log('Seeding categories...');
@@ -11,15 +10,9 @@ async function main() {
     skipDuplicates: true,
   });
 
-  console.log('Seeding skills...');
-  await prisma.skill.createMany({
-    data: DEFAULT_SKILLS.map((name) => ({ name })),
-    skipDuplicates: true,
-  });
-
   console.log('Seeding admin user...');
   const adminPassword = await hashPassword('Admin123!');
-  const admin = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: 'admin@skillbridge.dev' },
     update: {},
     create: {
@@ -27,6 +20,7 @@ async function main() {
       email: 'admin@skillbridge.dev',
       password: adminPassword,
       role: Role.super_admin,
+      emailVerified: true,
     },
   });
 
@@ -40,6 +34,7 @@ async function main() {
       email: 'student@skillbridge.dev',
       password: studentPassword,
       role: Role.student,
+      emailVerified: true,
     },
   });
   await prisma.studentProfile.upsert({
@@ -48,7 +43,7 @@ async function main() {
     create: { userId: student.id, campus: 'KNUST' },
   });
 
-  console.log('Seeding sample artisan...');
+  console.log('Seeding sample artisan (approved)...');
   const artisanPassword = await hashPassword('Artisan123!');
   const artisanUser = await prisma.user.upsert({
     where: { email: 'artisan@skillbridge.dev' },
@@ -58,6 +53,7 @@ async function main() {
       email: 'artisan@skillbridge.dev',
       password: artisanPassword,
       role: Role.artisan,
+      emailVerified: true,
     },
   });
 
@@ -70,35 +66,67 @@ async function main() {
       bio: 'Professional campus barber with 5+ years of experience.',
       pricingFrom: 20,
       location: 'Near Unity Hall',
-      yearsOfExperience: 5,
-      status: ApplicationStatus.ACTIVE,
+      applicationStatus: ApplicationStatus.ACTIVE,
+      verification: 'verified',
+      submittedAt: new Date('2025-01-01'),
+      reviewedAt: new Date('2025-01-02'),
+      reviewedByAdminId: (await prisma.user.findUnique({ where: { email: 'admin@skillbridge.dev' } }))!.id,
     },
   });
 
-  await prisma.artisanSkill.createMany({
+  await prisma.skill.createMany({
     data: [
-      { artisanId: artisanProfile.id, name: 'Haircuts' },
-      { artisanId: artisanProfile.id, name: 'Beard trimming' },
+      { name: 'Haircuts' },
+      { name: 'Beard trimming' },
+      { name: 'Hair styling' },
     ],
     skipDuplicates: true,
   });
 
-  await prisma.artisanCategory.createMany({
-    data: [{ artisanId: artisanProfile.id, name: 'Barbering' }],
+  const skillRecords = await prisma.skill.findMany({
+    where: { name: { in: ['Haircuts', 'Beard trimming', 'Hair styling'] } },
+  });
+
+  const skillMap = new Map(skillRecords.map((s) => [s.name, s.id]));
+
+  await prisma.artisanSkill.createMany({
+    data: ['Haircuts', 'Beard trimming', 'Hair styling'].map((name) => ({
+      artisanProfileId: artisanProfile.id,
+      skillId: skillMap.get(name)!,
+    })),
+    skipDuplicates: true,
+  });
+
+  const barberingCategory = await prisma.category.findFirst({ where: { name: 'Barbering' } });
+  if (barberingCategory) {
+    await prisma.artisanCategory.createMany({
+      data: [{ artisanProfileId: artisanProfile.id, categoryId: barberingCategory.id }],
+      skipDuplicates: true,
+    });
+  }
+
+  await prisma.artisanAvailability.createMany({
+    data: [
+      { artisanProfileId: artisanProfile.id, day: 'MONDAY', startTime: '09:00', endTime: '17:00' },
+      { artisanProfileId: artisanProfile.id, day: 'TUESDAY', startTime: '09:00', endTime: '17:00' },
+      { artisanProfileId: artisanProfile.id, day: 'WEDNESDAY', startTime: '09:00', endTime: '17:00' },
+      { artisanProfileId: artisanProfile.id, day: 'THURSDAY', startTime: '09:00', endTime: '17:00' },
+      { artisanProfileId: artisanProfile.id, day: 'FRIDAY', startTime: '09:00', endTime: '17:00' },
+    ],
     skipDuplicates: true,
   });
 
   await prisma.artisanVerification.upsert({
-    where: { artisanId: artisanProfile.id },
+    where: { artisanProfileId: artisanProfile.id },
     update: {},
     create: {
-      artisanId: artisanProfile.id,
+      artisanProfileId: artisanProfile.id,
       institution: 'KNUST',
-      studentIdNumber: 'KTU/2021/001',
-      verificationImageUrl: 'https://res.cloudinary.com/demo/image/upload/sample',
-      reviewStatus: VerificationReviewStatus.APPROVED,
-      reviewedBy: admin.id,
-      reviewedAt: new Date(),
+      studentId: 'STU-2024-001',
+      verificationImageUrl: 'https://example.com/verification.jpg',
+      status: VerificationReviewStatus.APPROVED,
+      reviewedAt: new Date('2025-01-02'),
+      reviewedByUserId: (await prisma.user.findUnique({ where: { email: 'admin@skillbridge.dev' } }))!.id,
     },
   });
 
@@ -108,12 +136,12 @@ async function main() {
     update: {},
     create: {
       id: '00000000-0000-0000-0000-000000000001',
-      artisanId: artisanProfile.id,
+      artisanProfileId: artisanProfile.id,
       title: 'Classic Haircut',
       description: 'A clean, classic haircut tailored to your style.',
       price: 25,
       durationMinutes: 30,
-      category: 'Barbering',
+      categoryId: (await prisma.category.findFirst({ where: { name: 'Barbering' } }))!.id,
     },
   });
 

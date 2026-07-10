@@ -1,145 +1,107 @@
-import { Prisma, ApplicationStatus, VerificationReviewStatus } from '@prisma/client';
-import { prisma } from '../../config/prisma';
-import { ApiError } from '../../utils/ApiError';
-import { parsePagination } from '../../utils/pagination';
-import { buildPaginationMeta } from '../../utils/apiResponse';
-import { emitToUser, emitToAdmins } from '../../sockets/io';
-import { SOCKET_EVENTS } from '../../sockets/events';
-import { uploadToCloudinary, deleteFromCloudinary, getPublicIdFromUrl } from '../../utils/cloudinary';
-import { skillsService } from '../../skills/skills.service';
+import { Prisma, ApplicationStatus, DayOfWeek } from '@prisma/client';
+import { prisma } from '../../../config/prisma';
+import { ApiError } from '../../../utils/ApiError';
+import { parsePagination } from '../../../utils/pagination';
+import { buildPaginationMeta } from '../../../utils/apiResponse';
+import { emitToUser, emitToAdmins } from '../../../sockets/io';
+import { SOCKET_EVENTS } from '../../../sockets/events';
 import {
   UpsertArtisanProfileInput,
   AddPortfolioItemInput,
   ListArtisansQuery,
   CreateServiceInput,
   UpdateServiceInput,
-  UpdateAvailabilityInput,
+  ApproveArtisanInput,
+  RejectArtisanInput,
+  RequestChangesInput,
 } from './artisans.validators';
 
-const ARTISAN_USER_SELECT = {
-  id: true,
-  name: true,
-  email: true,
-  phone: true,
-  avatarUrl: true,
-  isSuspended: true,
-} as const;
-
 const ARTISAN_INCLUDE = {
-  user: { select: ARTISAN_USER_SELECT },
+  user: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      profileImageUrl: true,
+      isSuspended: true,
+    },
+  },
   portfolio: { orderBy: { createdAt: 'desc' as const } },
-  skills: true,
-  categories: true,
-  services: { where: { isActive: true } },
+  skills: { include: { skill: { select: { id: true, name: true, active: true } } } },
+  categories: { include: { category: { select: { name: true, active: true } } } },
   availability: true,
-  verification: true,
+  services: { include: { category: { select: { id: true, name: true, active: true } } } },
+  verificationDoc: true,
+  statusHistory: { orderBy: { createdAt: 'desc' as const }, take: 1 },
 } satisfies Prisma.ArtisanProfileInclude;
 
-/**
- * Normalizes a stored ArtisanProfile (relations) into the public API shape the
- * mobile apps expect: `skills` and `categories` are returned as string arrays.
- */
-const serializeProfile = (profile: any) => ({
-  ...profile,
-  skills: (profile.skills ?? []).map((s: any) => s.name),
-  categories: (profile.categories ?? []).map((c: any) => c.name),
-});
+const toLegacyProfile = (profile: any) => {
+  if (!profile) return null;
+  return {
+    ...profile,
+    skills: (profile.skills ?? []).map((s: any) => s.skill?.name).filter(Boolean),
+    categories: (profile.categories ?? []).map((c: any) => c.category?.name).filter(Boolean),
+    availability: (profile.availability ?? []).map((a: any) => ({
+      day: (a.day ?? 'monday').toLowerCase(),
+      startTime: a.startTime,
+      endTime: a.endTime,
+    })),
+    services: (profile.services ?? []).map((s: any) => ({
+      ...s,
+      categoryName: s.category?.name,
+    })),
+    portfolio: (profile.portfolio ?? []).map((p: any) => ({
+      ...p,
+      imageUrl: p.imageUrl,
+    })),
+    verification: profile.verification ?? 'unverified',
+  };
+};
 
 export const artisansService = {
   async getProfileByUserId(userId: string) {
     const profile = await prisma.artisanProfile.findUnique({
       where: { userId },
-      include: ARTISAN_INCLUDE,
+      include: ARTISAN_INCLUDE as any,
     });
 
     if (!profile) {
       throw ApiError.notFound('Artisan profile not found.');
     }
 
-    return serializeProfile(profile);
+    return toLegacyProfile(profile) as any;
   },
 
   async getById(id: string) {
     const profile = await prisma.artisanProfile.findUnique({
       where: { id },
-      include: ARTISAN_INCLUDE,
+      include: ARTISAN_INCLUDE as any,
     });
 
     if (!profile) {
       throw ApiError.notFound('Artisan not found.');
     }
 
-    return serializeProfile(profile);
-  },
-
-  async upsertProfile(userId: string, input: UpsertArtisanProfileInput) {
-    const { availability, skills, categories, ...rest } = input;
-
-    const profile = await prisma.artisanProfile.upsert({
-      where: { userId },
-      create: { userId, ...rest },
-      update: { ...rest },
-      include: ARTISAN_INCLUDE,
-    });
-
-    if (skills) {
-      await this.replaceSkills(profile.id, skills);
-    }
-    if (categories) {
-      await this.replaceCategories(profile.id, categories);
-    }
-    if (availability !== undefined) {
-      await this.replaceAvailability(profile.id, availability);
-    }
-
-    const refreshed = await this.getById(profile.id);
-    return refreshed;
-  },
-
-  async replaceSkills(artisanId: string, names: string[]) {
-    await skillsService.assertValid(names);
-    await prisma.$transaction([
-      prisma.artisanSkill.deleteMany({ where: { artisanId } }),
-      prisma.artisanSkill.createMany({
-        data: names.map((name) => ({ artisanId, name })),
-        skipDuplicates: true,
-      }),
-    ]);
-  },
-
-  async replaceCategories(artisanId: string, names: string[]) {
-    await prisma.$transaction([
-      prisma.artisanCategory.deleteMany({ where: { artisanId } }),
-      prisma.artisanCategory.createMany({
-        data: names.map((name) => ({ artisanId, name })),
-        skipDuplicates: true,
-      }),
-    ]);
-  },
-
-  async replaceAvailability(artisanId: string, slots: UpdateAvailabilityInput['slots']) {
-    await prisma.artisanAvailability.deleteMany({ where: { artisanId } });
-    if (slots && slots.length > 0) {
-      await prisma.artisanAvailability.createMany({
-        data: slots.map((s) => ({ artisanId, day: s.day, startTime: s.startTime, endTime: s.endTime })),
-      });
-    }
+    return toLegacyProfile(profile) as any;
   },
 
   async list(query: ListArtisansQuery) {
     const { page, pageSize, skip, take } = parsePagination(query);
 
-    // Phase 8: public marketplace only exposes ACTIVE artisans.
     const where: Prisma.ArtisanProfileWhereInput = {
       isSuspended: false,
-      status: ApplicationStatus.ACTIVE,
-      ...(query.category ? { categories: { some: { name: query.category } } } : {}),
+      applicationStatus: ApplicationStatus.ACTIVE,
+      ...(query.applicationStatus && query.applicationStatus !== ApplicationStatus.ACTIVE
+        ? { applicationStatus: query.applicationStatus }
+        : {}),
+      ...(query.category ? { categories: { some: { category: { name: { equals: query.category, mode: 'insensitive' } } } } } : {}),
       ...(query.query
         ? {
             OR: [
               { businessName: { contains: query.query, mode: 'insensitive' } },
               { bio: { contains: query.query, mode: 'insensitive' } },
               { user: { name: { contains: query.query, mode: 'insensitive' } } },
+              { skills: { some: { skill: { name: { contains: query.query, mode: 'insensitive' } } } } },
             ],
           }
         : {}),
@@ -148,7 +110,7 @@ export const artisansService = {
     const [items, totalItems] = await Promise.all([
       prisma.artisanProfile.findMany({
         where,
-        include: ARTISAN_INCLUDE,
+        include: ARTISAN_INCLUDE as any,
         orderBy: [{ rating: 'desc' }, { createdAt: 'desc' }],
         skip,
         take,
@@ -157,44 +119,110 @@ export const artisansService = {
     ]);
 
     return {
-      items: items.map(serializeProfile),
+      items: items.map(toLegacyProfile) as any,
       meta: buildPaginationMeta(page, pageSize, totalItems),
     };
   },
 
-  async listPortfolio(artisanId: string) {
-    const profile = await prisma.artisanProfile.findUnique({ where: { id: artisanId } });
-    if (!profile) {
-      throw ApiError.notFound('Artisan not found.');
+  async upsertProfile(userId: string, input: UpsertArtisanProfileInput) {
+    const { availability, skills, categories, ...rest } = input;
+
+    const profile = await prisma.artisanProfile.upsert({
+      where: { userId },
+      create: {
+        userId,
+        ...rest,
+      },
+      update: {
+        ...rest,
+      },
+      include: ARTISAN_INCLUDE as any,
+    });
+
+    if (availability && availability.length > 0) {
+      const profileRecord = profile.id ? profile : await prisma.artisanProfile.findUnique({ where: { userId } });
+      if (profileRecord) {
+        await prisma.artisanAvailability.deleteMany({ where: { artisanProfileId: profileRecord.id } });
+        const dayMap: Record<string, DayOfWeek> = {
+          monday: DayOfWeek.MONDAY,
+          tuesday: DayOfWeek.TUESDAY,
+          wednesday: DayOfWeek.WEDNESDAY,
+          thursday: DayOfWeek.THURSDAY,
+          friday: DayOfWeek.FRIDAY,
+          saturday: DayOfWeek.SATURDAY,
+          sunday: DayOfWeek.SUNDAY,
+        };
+        await prisma.artisanAvailability.createMany({
+          data: availability.map((slot) => ({
+            artisanProfileId: profileRecord.id,
+            day: dayMap[slot.day.toLowerCase()] ?? DayOfWeek.MONDAY,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+          })),
+          skipDuplicates: true,
+        });
+      }
     }
 
-    return prisma.artisanPortfolio.findMany({
-      where: { artisanId },
-      orderBy: { createdAt: 'desc' },
-    });
+    if (skills && skills.length > 0) {
+      const profileRecord = profile.id ? profile : await prisma.artisanProfile.findUnique({ where: { userId } });
+      if (profileRecord) {
+        const existingSkills = await prisma.skill.findMany({
+          where: { id: { in: skills } },
+        });
+
+        const validSkillIds = new Set(existingSkills.map((s) => s.id));
+        const invalidSkillIds = skills.filter((id) => !validSkillIds.has(id));
+        if (invalidSkillIds.length > 0) {
+          throw ApiError.badRequest(`Invalid skill IDs: ${invalidSkillIds.join(', ')}`);
+        }
+
+        await prisma.artisanSkill.deleteMany({ where: { artisanProfileId: profileRecord.id } });
+        await prisma.artisanSkill.createMany({
+          data: existingSkills.map((skill) => ({
+            artisanProfileId: profileRecord.id,
+            skillId: skill.id,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
+
+    if (categories && categories.length > 0) {
+      const profileRecord = profile.id ? profile : await prisma.artisanProfile.findUnique({ where: { userId } });
+      if (profileRecord) {
+        await prisma.artisanCategory.deleteMany({ where: { artisanProfileId: profileRecord.id } });
+        const categoryRecords = await prisma.category.findMany({
+          where: { name: { in: categories.map((c) => c.trim()), mode: 'insensitive' } },
+        });
+        await prisma.artisanCategory.createMany({
+          data: categoryRecords.map((cat) => ({
+            artisanProfileId: profileRecord.id,
+            categoryId: cat.id,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
+
+    return toLegacyProfile(profile) as any;
   },
 
-  async addPortfolioItem(userId: string, input: AddPortfolioItemInput, file: any) {
+  async addPortfolioItem(userId: string, input: AddPortfolioItemInput) {
     const profile = await prisma.artisanProfile.findUnique({ where: { userId } });
     if (!profile) {
       throw ApiError.notFound('Artisan profile not found.');
     }
 
-    if (!file) {
-      throw ApiError.badRequest('Image file is required.');
-    }
-
-    let imageUrl: string;
-    try {
-      imageUrl = await uploadToCloudinary(file.buffer, 'portfolio');
-    } catch (error) {
-      console.error('Cloudinary upload failed (portfolio):', error);
-      throw ApiError.internal('Failed to upload image.');
-    }
-
-    return prisma.artisanPortfolio.create({
-      data: { artisanId: profile.id, title: input.title, description: input.description, imageUrl },
+    const item = await prisma.artisanPortfolio.create({
+      data: {
+        artisanProfileId: profile.id,
+        imageUrl: input.imageUrl,
+        caption: input.caption,
+      },
     });
+
+    return item;
   },
 
   async removePortfolioItem(userId: string, itemId: string) {
@@ -204,150 +232,13 @@ export const artisansService = {
     }
 
     const item = await prisma.artisanPortfolio.findUnique({ where: { id: itemId } });
-    if (!item || item.artisanId !== profile.id) {
+    if (!item || item.artisanProfileId !== profile.id) {
       throw ApiError.notFound('Portfolio item not found.');
-    }
-
-    try {
-      const publicId = getPublicIdFromUrl(item.imageUrl);
-      if (publicId) {
-        await deleteFromCloudinary(publicId);
-      }
-    } catch {
-      // proceed with deletion even if cloudinary delete fails
     }
 
     await prisma.artisanPortfolio.delete({ where: { id: itemId } });
     return { message: 'Portfolio item removed.' };
   },
-
-  async updateProfileImage(userId: string, file: any) {
-    const profile = await prisma.artisanProfile.findUnique({ where: { userId } });
-    if (!profile) {
-      throw ApiError.notFound('Artisan profile not found.');
-    }
-
-    if (!file) {
-      throw ApiError.badRequest('Image file is required.');
-    }
-
-    try {
-      const oldPublicId = getPublicIdFromUrl(profile.profileImageUrl ?? '');
-      if (oldPublicId) {
-        await deleteFromCloudinary(oldPublicId).catch(() => {});
-      }
-    } catch {
-      // ignore old image cleanup errors
-    }
-
-    let imageUrl: string;
-    try {
-      imageUrl = await uploadToCloudinary(file.buffer, 'artisans/profile');
-    } catch (error) {
-      console.error('Cloudinary upload failed (profile-image):', error);
-      throw ApiError.internal('Failed to upload image.');
-    }
-
-    const updated = await prisma.artisanProfile.update({
-      where: { userId },
-      data: { profileImageUrl: imageUrl },
-      include: ARTISAN_INCLUDE,
-    });
-
-    return serializeProfile(updated);
-  },
-
-  // ── Application status / verification review ───────────────────────────
-
-  async setApplicationStatus(artisanId: string, status: ApplicationStatus, note?: string, changedBy?: string) {
-    const profile = await prisma.artisanProfile.findUnique({ where: { id: artisanId } });
-    if (!profile) {
-      throw ApiError.notFound('Artisan not found.');
-    }
-
-    const updated = await prisma.artisanProfile.update({
-      where: { id: artisanId },
-      data: { status },
-      include: ARTISAN_INCLUDE,
-    });
-
-    await prisma.applicationStatusHistory.create({
-      data: { artisanId, status, note, changedBy },
-    });
-
-    return serializeProfile(updated);
-  },
-
-  async applyVerificationReview(
-    artisanId: string,
-    reviewStatus: VerificationReviewStatus,
-    note?: string,
-    reviewedBy?: string
-  ) {
-    const verification = await prisma.artisanVerification.findUnique({ where: { artisanId } });
-    if (!verification) {
-      throw ApiError.notFound('Verification record not found.');
-    }
-
-    return prisma.artisanVerification.update({
-      where: { artisanId },
-      data: {
-        reviewStatus,
-        reviewNotes: note ?? verification.reviewNotes,
-        reviewedBy: reviewedBy ?? verification.reviewedBy,
-        reviewedAt: new Date(),
-      },
-    });
-  },
-
-  async approve(artisanId: string, note: string | undefined, changedBy: string | undefined) {
-    const updated = await this.setApplicationStatus(artisanId, ApplicationStatus.ACTIVE, note, changedBy);
-    await this.applyVerificationReview(artisanId, VerificationReviewStatus.APPROVED, note, changedBy).catch(
-      () => undefined
-    );
-
-    emitToUser(updated.user.id, SOCKET_EVENTS.ARTISAN_VERIFIED, updated);
-    emitToAdmins(SOCKET_EVENTS.ARTISAN_VERIFIED, updated);
-    return updated;
-  },
-
-  async reject(artisanId: string, note: string, changedBy: string | undefined) {
-    const updated = await this.setApplicationStatus(artisanId, ApplicationStatus.REJECTED, note, changedBy);
-    await this.applyVerificationReview(artisanId, VerificationReviewStatus.REJECTED, note, changedBy).catch(
-      () => undefined
-    );
-    return updated;
-  },
-
-  async requestChanges(artisanId: string, note: string, changedBy: string | undefined) {
-    const updated = await this.setApplicationStatus(
-      artisanId,
-      ApplicationStatus.CHANGES_REQUESTED,
-      note,
-      changedBy
-    );
-    await this.applyVerificationReview(artisanId, VerificationReviewStatus.CHANGES_REQUESTED, note, changedBy).catch(
-      () => undefined
-    );
-    return updated;
-  },
-
-  async setSuspended(id: string, suspended: boolean) {
-    const profile = await prisma.artisanProfile.findUnique({ where: { id } });
-    if (!profile) {
-      throw ApiError.notFound('Artisan not found.');
-    }
-
-    return serializeProfile(
-      await prisma.artisanProfile.update({
-        where: { id },
-        data: { isSuspended: suspended },
-        include: ARTISAN_INCLUDE,
-      })
-    );
-  },
-
-  // ── Bookable services ──────────────────────────────────────────────────
 
   async listServices(artisanId: string) {
     const profile = await prisma.artisanProfile.findUnique({ where: { id: artisanId } });
@@ -356,7 +247,8 @@ export const artisansService = {
     }
 
     return prisma.artisanService.findMany({
-      where: { artisanId, isActive: true },
+      where: { artisanProfileId: artisanId, isActive: true },
+      include: { category: { select: { id: true, name: true, active: true } } },
       orderBy: { createdAt: 'asc' },
     });
   },
@@ -367,8 +259,16 @@ export const artisansService = {
       throw ApiError.notFound('Artisan profile not found.');
     }
 
+    const category = await prisma.category.findUnique({ where: { id: input.categoryId } });
+    if (!category) {
+      throw ApiError.badRequest('Invalid category.');
+    }
+
+    const { categoryId, ...rest } = input;
+
     return prisma.artisanService.create({
-      data: { artisanId: profile.id, ...input },
+      data: { artisanProfileId: profile.id, categoryId, ...rest },
+      include: { category: { select: { id: true, name: true, active: true } } },
     });
   },
 
@@ -379,11 +279,24 @@ export const artisansService = {
     }
 
     const service = await prisma.artisanService.findUnique({ where: { id: serviceId } });
-    if (!service || service.artisanId !== profile.id) {
+    if (!service || service.artisanProfileId !== profile.id) {
       throw ApiError.notFound('Service not found.');
     }
 
-    return prisma.artisanService.update({ where: { id: serviceId }, data: input });
+    const data: any = { ...input };
+    if (input.categoryId) {
+      const category = await prisma.category.findUnique({ where: { id: input.categoryId } });
+      if (!category) {
+        throw ApiError.badRequest('Invalid category.');
+      }
+      data.categoryId = input.categoryId;
+    }
+
+    return prisma.artisanService.update({
+      where: { id: serviceId },
+      data,
+      include: { category: { select: { id: true, name: true, active: true } } },
+    });
   },
 
   async deleteService(userId: string, serviceId: string) {
@@ -393,7 +306,7 @@ export const artisansService = {
     }
 
     const service = await prisma.artisanService.findUnique({ where: { id: serviceId } });
-    if (!service || service.artisanId !== profile.id) {
+    if (!service || service.artisanProfileId !== profile.id) {
       throw ApiError.notFound('Service not found.');
     }
 
@@ -401,29 +314,193 @@ export const artisansService = {
     return { message: 'Service removed.' };
   },
 
-  // ── Availability ──────────────────────────────────────────────────────
-
   async getAvailability(id: string) {
     const profile = await prisma.artisanProfile.findUnique({
       where: { id },
-      select: { id: true },
+      select: { availability: true },
     });
 
     if (!profile) {
       throw ApiError.notFound('Artisan not found.');
     }
 
-    return prisma.artisanAvailability.findMany({ where: { artisanId: id } });
+    return profile.availability ?? [];
   },
 
-  async updateAvailability(userId: string, slots: UpdateAvailabilityInput['slots']) {
+  async updateAvailability(userId: string, slots: any) {
     const profile = await prisma.artisanProfile.findUnique({ where: { userId } });
     if (!profile) {
       throw ApiError.notFound('Artisan profile not found.');
     }
 
-    await this.replaceAvailability(profile.id, slots ?? []);
-    return prisma.artisanAvailability.findMany({ where: { artisanId: profile.id } });
+    await prisma.artisanAvailability.deleteMany({ where: { artisanProfileId: profile.id } });
+    await prisma.artisanAvailability.createMany({
+      data: (slots ?? []).map((slot: any) => ({
+        artisanProfileId: profile.id,
+        day: slot.day,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+      })),
+      skipDuplicates: true,
+    });
+
+    const updated = await prisma.artisanAvailability.findMany({
+      where: { artisanProfileId: profile.id },
+    });
+
+    return updated.map((a) => ({
+      day: (a.day as string).toLowerCase(),
+      startTime: a.startTime,
+      endTime: a.endTime,
+    }));
+  },
+
+  async setVerification(id: string, status: string) {
+    const profile = await prisma.artisanProfile.findUnique({ where: { id } });
+    if (!profile) {
+      throw ApiError.notFound('Artisan not found.');
+    }
+
+    let applicationStatus: ApplicationStatus;
+    if (status === 'verified') applicationStatus = ApplicationStatus.ACTIVE;
+    else if (status === 'rejected') applicationStatus = ApplicationStatus.REJECTED;
+    else if (status === 'pending') applicationStatus = ApplicationStatus.PENDING_REVIEW;
+    else applicationStatus = ApplicationStatus.CHANGES_REQUESTED;
+
+    const updated = await prisma.artisanProfile.update({
+      where: { id },
+      data: {
+        applicationStatus,
+        verification: status,
+      },
+      include: ARTISAN_INCLUDE as any,
+    });
+
+    if (status === 'verified') {
+      emitToUser(profile.userId, SOCKET_EVENTS.ARTISAN_VERIFIED, updated);
+    }
+    emitToAdmins(SOCKET_EVENTS.ARTISAN_VERIFIED, updated);
+
+    return toLegacyProfile(updated) as any;
+  },
+
+  async setSuspended(id: string, suspended: boolean) {
+    const profile = await prisma.artisanProfile.findUnique({ where: { id } });
+    if (!profile) {
+      throw ApiError.notFound('Artisan not found.');
+    }
+
+    return prisma.artisanProfile.update({
+      where: { id },
+      data: { isSuspended: suspended },
+      include: ARTISAN_INCLUDE as any,
+    });
+  },
+
+  async approveArtisan(id: string, adminId: string, notes?: string) {
+    const profile = await prisma.artisanProfile.findUnique({ where: { id } });
+    if (!profile) {
+      throw ApiError.notFound('Artisan not found.');
+    }
+
+    const updated = await prisma.artisanProfile.update({
+      where: { id },
+      data: {
+        applicationStatus: ApplicationStatus.ACTIVE,
+        reviewedByAdminId: adminId,
+        reviewedAt: new Date(),
+        rejectionReason: null,
+        reviewNotes: notes ?? undefined,
+        verification: 'verified',
+      },
+      include: ARTISAN_INCLUDE as any,
+    });
+
+    const currentStatus = profile.applicationStatus;
+
+    await prisma.artisanStatusChange.create({
+      data: {
+        artisanProfileId: profile.id,
+        fromStatus: currentStatus,
+        toStatus: ApplicationStatus.ACTIVE,
+        changedByUserId: adminId,
+        notes,
+      },
+    });
+
+    emitToUser(profile.userId, SOCKET_EVENTS.ARTISAN_VERIFIED, updated);
+    emitToAdmins(SOCKET_EVENTS.ARTISAN_VERIFIED, updated);
+
+    return toLegacyProfile(updated) as any;
+  },
+
+  async rejectArtisan(id: string, adminId: string, reason: string) {
+    const profile = await prisma.artisanProfile.findUnique({ where: { id } });
+    if (!profile) {
+      throw ApiError.notFound('Artisan not found.');
+    }
+
+    const updated = await prisma.artisanProfile.update({
+      where: { id },
+      data: {
+        applicationStatus: ApplicationStatus.REJECTED,
+        reviewedByAdminId: adminId,
+        reviewedAt: new Date(),
+        rejectionReason: reason,
+        verification: 'rejected',
+      },
+      include: ARTISAN_INCLUDE as any,
+    });
+
+    const currentStatus = profile.applicationStatus;
+
+    await prisma.artisanStatusChange.create({
+      data: {
+        artisanProfileId: profile.id,
+        fromStatus: currentStatus,
+        toStatus: ApplicationStatus.REJECTED,
+        changedByUserId: adminId,
+        notes: reason,
+      },
+    });
+
+    emitToUser(profile.userId, SOCKET_EVENTS.ARTISAN_VERIFIED, updated);
+    emitToAdmins(SOCKET_EVENTS.ARTISAN_VERIFIED, updated);
+
+    return toLegacyProfile(updated) as any;
+  },
+
+  async requestChangesArtisan(id: string, adminId: string, changes: string) {
+    const profile = await prisma.artisanProfile.findUnique({ where: { id } });
+    if (!profile) {
+      throw ApiError.notFound('Artisan not found.');
+    }
+
+    const updated = await prisma.artisanProfile.update({
+      where: { id },
+      data: {
+        applicationStatus: ApplicationStatus.CHANGES_REQUESTED,
+        reviewNotes: changes,
+        verification: 'rejected',
+      },
+      include: ARTISAN_INCLUDE as any,
+    });
+
+    const currentStatus = profile.applicationStatus;
+
+    await prisma.artisanStatusChange.create({
+      data: {
+        artisanProfileId: profile.id,
+        fromStatus: currentStatus,
+        toStatus: ApplicationStatus.CHANGES_REQUESTED,
+        changedByUserId: adminId,
+        notes: changes,
+      },
+    });
+
+    emitToUser(profile.userId, SOCKET_EVENTS.ARTISAN_VERIFIED, updated);
+
+    return toLegacyProfile(updated) as any;
   },
 
   async recomputeRating(artisanId: string) {

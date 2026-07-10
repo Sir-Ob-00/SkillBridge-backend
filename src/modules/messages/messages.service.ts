@@ -14,8 +14,8 @@ export const messagesService = {
       where: { OR: [{ senderId: userId }, { receiverId: userId }] },
       orderBy: { timestamp: 'desc' },
       include: {
-        sender: { select: { id: true, name: true, avatarUrl: true } },
-        receiver: { select: { id: true, name: true, avatarUrl: true } },
+        sender: { select: { id: true, name: true, profileImageUrl: true } },
+        receiver: { select: { id: true, name: true, profileImageUrl: true } },
       },
     });
 

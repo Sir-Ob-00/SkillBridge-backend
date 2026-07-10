@@ -4,7 +4,7 @@ import { Role } from '@prisma/client';
 export const updateProfileSchema = z.object({
   name: z.string().trim().min(2).optional(),
   phone: z.string().trim().min(7).max(20).optional(),
-  avatarUrl: z.string().url().optional(),
+  profileImageUrl: z.string().url().optional(),
 });
 
 export const listUsersQuerySchema = z.object({

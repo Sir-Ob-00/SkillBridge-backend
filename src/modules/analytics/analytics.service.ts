@@ -7,6 +7,13 @@ interface DailyTrendRow {
   count: bigint | number;
 }
 
+interface CategoryCountRow {
+  categoryId: string;
+  _count: {
+    categoryId: number;
+  };
+}
+
 export const analyticsService = {
   async getOverview() {
     const [
@@ -24,7 +31,7 @@ export const analyticsService = {
       prisma.user.count({ where: { role: Role.student } }),
       prisma.user.count({ where: { role: Role.artisan } }),
       prisma.user.count({ where: { role: { in: [Role.admin, Role.super_admin] } } }),
-      prisma.artisanProfile.count({ where: { status: ApplicationStatus.PENDING_REVIEW } }),
+      prisma.artisanProfile.count({ where: { applicationStatus: ApplicationStatus.PENDING_REVIEW } }),
       prisma.booking.count(),
       prisma.booking.groupBy({ by: ['status'], _count: { status: true } }),
       prisma.review.aggregate({ _avg: { rating: true }, _count: { rating: true } }),
@@ -77,14 +84,22 @@ export const analyticsService = {
   /** Top categories by number of bookable services listed. */
   async getTopCategories(limit = 10) {
     const rows = await prisma.artisanService.groupBy({
-      by: ['category'],
+      by: ['categoryId'],
       where: { isActive: true },
-      _count: { category: true },
-      orderBy: { _count: { category: 'desc' } },
+      _count: { categoryId: true },
+      orderBy: { _count: { categoryId: 'desc' } },
       take: limit,
     });
 
-    return rows.map((row) => ({ category: row.category, count: row._count.category }));
+    const categoryIds = rows.map((row) => row.categoryId);
+    const categories = await prisma.category.findMany({
+      where: { id: { in: categoryIds } },
+      select: { id: true, name: true },
+    });
+
+    const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
+
+    return rows.map((row) => ({ category: categoryMap.get(row.categoryId) ?? row.categoryId, count: row._count.categoryId }));
   },
 
   async getAverageRatings() {

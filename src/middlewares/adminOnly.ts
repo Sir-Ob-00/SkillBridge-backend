@@ -1,5 +1,25 @@
+import { Request, Response, NextFunction } from 'express';
+import { ApiError } from '../utils/ApiError';
 import { Role } from '@prisma/client';
-import { authorize } from './authorize';
+import { prisma } from '../config/prisma';
 
-/** Allows only admin or super_admin roles. */
-export const adminOnly = authorize([Role.admin, Role.super_admin]);
+export const adminOnly = async (req: Request, _res: Response, next: NextFunction) => {
+  if (!req.user) {
+    throw ApiError.unauthorized();
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: req.user.id },
+    select: { role: true, isSuspended: true },
+  });
+
+  if (!user || !['admin', 'super_admin'].includes(user.role)) {
+    throw ApiError.forbidden('Admin access required.');
+  }
+
+  if (user.isSuspended) {
+    throw ApiError.forbidden('Your account has been suspended.');
+  }
+
+  next();
+};
