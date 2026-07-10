@@ -1,5 +1,4 @@
-import nodemailer from 'nodemailer';
-import * as dns from 'dns';
+import { Resend } from 'resend';
 import { env } from '../config/env';
 import { EmailVerificationOTP, User } from '@prisma/client';
 import { prisma } from '../config/prisma';
@@ -8,63 +7,7 @@ import { generateOTP } from './generateOTP';
 
 const OTP_EXPIRY_MS = 10 * 60 * 1000;
 
-// Gmail: 465 = implicit TLS (secure), 587 = STARTTLS. Derive the mode from
-// the port so the transporter works whether EMAIL_PORT is 465 or 587.
-const useImplicitTls = env.EMAIL_PORT === 465;
-
-type MailTransporter = any;
-
-// Lazily build (and cache) the transporter. We resolve the SMTP host to an
-// IPv4 address because Nodemailer resolves both A and AAAA records and then
-// randomly picks one; on hosts without IPv6 routes (e.g. Render) it can select
-// an unreachable IPv6 address (ENETUNREACH). Pinning IPv4 avoids that.
-let transporterPromise: Promise<MailTransporter> | null = null;
-
-const getTransporter = (): Promise<MailTransporter> => {
-  if (!transporterPromise) {
-    transporterPromise = new Promise<MailTransporter>((resolve) => {
-      const host = env.EMAIL_HOST;
-      const build = (resolvedHost: string): MailTransporter =>
-        nodemailer.createTransport({
-          host: resolvedHost,
-          port: env.EMAIL_PORT,
-          secure: useImplicitTls,
-          requireTLS: !useImplicitTls,
-          family: 4,
-          tls: { servername: host },
-          auth: {
-            user: env.EMAIL_USER,
-            pass: env.EMAIL_PASS,
-          },
-          connectionTimeout: 10000,
-          greetingTimeout: 10000,
-          socketTimeout: 10000,
-        } as any);
-
-      const finalize = (resolvedHost: string) => {
-        const transporter = build(resolvedHost);
-        transporter.verify((error: Error | null) => {
-          if (error) {
-            console.error('[SMTP VERIFY FAILED]', error);
-          } else {
-            console.log('[SMTP READY]');
-          }
-        });
-        resolve(transporter);
-      };
-
-      if (!host) {
-        finalize(host);
-        return;
-      }
-
-      dns.lookup(host, { family: 4 }, (err, address) => {
-        finalize(err || !address ? host : address);
-      });
-    });
-  }
-  return transporterPromise;
-};
+const resend = new Resend(env.RESEND_API_KEY);
 
 const ensureOtp = async (userId: string): Promise<EmailVerificationOTP> => {
   const existing = await prisma.emailVerificationOTP.findUnique({ where: { userId } });
@@ -84,32 +27,34 @@ const ensureOtp = async (userId: string): Promise<EmailVerificationOTP> => {
 };
 
 export const sendOTPEmail = async (email: string, otp: string): Promise<void> => {
-  const mailOptions = {
-    from: env.EMAIL_FROM || env.EMAIL_USER,
-    to: email,
-    subject: 'SkillBridge - Verify Your Email',
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #2563eb;">SkillBridge Email Verification</h2>
-        <p>Thank you for registering with SkillBridge. Please use the following OTP to verify your email address:</p>
-        <div style="background-color: #f3f4f6; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
-          <h1 style="color: #2563eb; letter-spacing: 8px; font-size: 32px; margin: 0;">${otp}</h1>
-        </div>
-        <p style="color: #6b7280;">This OTP will expire in <strong>10 minutes</strong>.</p>
-        <p style="color: #6b7280;">If you did not request this verification, please ignore this email.</p>
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-        <p style="color: #9ca3af; font-size: 12px;">SkillBridge Team</p>
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #2563eb;">SkillBridge Email Verification</h2>
+      <p>Thank you for registering with SkillBridge. Please use the following OTP to verify your email address:</p>
+      <div style="background-color: #f3f4f6; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
+        <h1 style="color: #2563eb; letter-spacing: 8px; font-size: 32px; margin: 0;">${otp}</h1>
       </div>
-    `,
-  };
+      <p style="color: #6b7280;">This OTP will expire in <strong>10 minutes</strong>.</p>
+      <p style="color: #6b7280;">If you did not request this verification, please ignore this email.</p>
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+      <p style="color: #9ca3af; font-size: 12px;">SkillBridge Team</p>
+    </div>
+  `;
 
   try {
-    const transporter = await getTransporter();
-    await transporter.sendMail(mailOptions);
+    const { error } = await resend.emails.send({
+      from: env.EMAIL_FROM,
+      to: email,
+      subject: 'SkillBridge - Verify Your Email',
+      html,
+    });
+
+    if (error) {
+      console.error('[email] OTP send failed:', error);
+      throw ApiError.internal('Failed to send verification email. Please try again later.');
+    }
   } catch (error) {
     const e = error as { message?: string; code?: string; command?: string; response?: string };
-    // Surface the underlying SMTP failure in the server logs (not to the client)
-    // so production email issues are diagnosable.
     console.error('[email] OTP send failed:', {
       message: e.message,
       code: e.code,
@@ -127,8 +72,6 @@ export const emailService = {
     try {
       await sendOTPEmail(user.email, otpRecord.otp);
     } catch (error) {
-      // Roll back the OTP we just created so a failed delivery doesn't leave a
-      // dangling, unverifiable record behind.
       await prisma.emailVerificationOTP.deleteMany({ where: { userId: user.id } }).catch(() => {});
       throw ApiError.internal('Unable to send verification email. Please try again.');
     }
@@ -162,7 +105,6 @@ export const emailService = {
         where: { id: user.id },
         data: { emailVerified: true },
       }),
-      // Clean up the OTP once verification succeeds so it can't be reused.
       prisma.emailVerificationOTP.delete({
         where: { id: record.id },
       }),
