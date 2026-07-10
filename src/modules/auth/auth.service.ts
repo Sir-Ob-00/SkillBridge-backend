@@ -112,8 +112,7 @@ export const authService = {
     const otpResult = await emailService.sendVerificationOtp(user);
 
     return {
-      message: otpResult.message,
-      ...(otpResult.devOtp ? { devOtp: otpResult.devOtp } : {}),
+      message: 'Verification OTP sent successfully.',
     };
   },
 

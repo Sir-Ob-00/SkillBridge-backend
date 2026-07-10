@@ -72,13 +72,6 @@ export const emailService = {
   async sendVerificationOtp(user: Pick<User, 'id' | 'name' | 'email'>) {
     const otpRecord = await ensureOtp(user.id);
 
-    if (!env.isProduction) {
-      return {
-        message: 'A verification code has been sent to your email.',
-        devOtp: otpRecord.otp,
-      };
-    }
-
     try {
       await sendOTPEmail(user.email, otpRecord.otp);
     } catch (error) {
