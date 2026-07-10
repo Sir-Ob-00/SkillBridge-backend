@@ -7,10 +7,15 @@ import { generateOTP } from './generateOTP';
 
 const OTP_EXPIRY_MS = 10 * 60 * 1000;
 
+// Gmail: 465 = implicit TLS (secure), 587 = STARTTLS. Derive the mode from
+// the port so the transporter works whether EMAIL_PORT is 465 or 587.
+const useImplicitTls = env.EMAIL_PORT === 465;
+
 const transporter = nodemailer.createTransport({
   host: env.EMAIL_HOST,
   port: env.EMAIL_PORT,
-  secure: true,
+  secure: useImplicitTls,
+  requireTLS: !useImplicitTls,
   auth: {
     user: env.EMAIL_USER,
     pass: env.EMAIL_PASS,
