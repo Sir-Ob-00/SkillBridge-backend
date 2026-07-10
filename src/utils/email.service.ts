@@ -24,12 +24,6 @@ const ensureOtp = async (userId: string): Promise<EmailVerificationOTP> => {
   }
 
   const now = new Date();
-  const canResend = !existing || existing.expiresAt < now;
-
-  if (!canResend) {
-    throw ApiError.badRequest('Please wait before requesting another OTP.');
-  }
-
   const otp = generateOTP();
   const expiresAt = new Date(now.getTime() + OTP_EXPIRY_MS);
 
