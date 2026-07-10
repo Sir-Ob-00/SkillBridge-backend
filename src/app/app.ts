@@ -12,6 +12,8 @@ import { setupSwagger } from '../docs/swagger';
 export const createApp = (): Express => {
   const app = express();
 
+  app.set("trust proxy", 1);
+
   app.use(helmet());
   app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
   app.use(express.json({ limit: '2mb' }));

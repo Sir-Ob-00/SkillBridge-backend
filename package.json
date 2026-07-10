@@ -25,7 +25,6 @@
     "@types/morgan": "^1.9.9",
     "@types/multer": "^2.2.0",
     "@types/node": "^20.14.9",
-    "@types/nodemailer": "^8.0.1",
     "@types/pg": "^8.11.10",
     "@types/swagger-ui-express": "^4.1.8",
     "@types/uuid": "^9.0.8",
@@ -49,5 +48,7 @@
     "uuid": "^14.0.1",
     "zod": "^3.23.8"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@types/nodemailer": "^8.0.1"
+  }
 }

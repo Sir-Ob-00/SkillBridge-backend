@@ -12,7 +12,7 @@ const OTP_EXPIRY_MS = 10 * 60 * 1000;
 // the port so the transporter works whether EMAIL_PORT is 465 or 587.
 const useImplicitTls = env.EMAIL_PORT === 465;
 
-type MailTransporter = ReturnType<typeof nodemailer.createTransport>;
+type MailTransporter = any;
 
 // Lazily build (and cache) the transporter. We resolve the SMTP host to an
 // IPv4 address because Nodemailer resolves both A and AAAA records and then
@@ -24,24 +24,22 @@ const getTransporter = (): Promise<MailTransporter> => {
   if (!transporterPromise) {
     transporterPromise = new Promise<MailTransporter>((resolve) => {
       const host = env.EMAIL_HOST;
-      const build = (resolvedHost: string) =>
+      const build = (resolvedHost: string): MailTransporter =>
         nodemailer.createTransport({
           host: resolvedHost,
           port: env.EMAIL_PORT,
           secure: useImplicitTls,
           requireTLS: !useImplicitTls,
-          // Keep the real hostname for TLS SNI / certificate validation when
-          // we substitute the resolved IPv4 address above.
+          family: 4,
           tls: { servername: host },
           auth: {
             user: env.EMAIL_USER,
             pass: env.EMAIL_PASS,
           },
-          // Fail fast on unreachable / slow SMTP servers instead of hanging requests.
-          connectionTimeout: env.EMAIL_TIMEOUT_MS,
-          greetingTimeout: env.EMAIL_TIMEOUT_MS,
-          socketTimeout: env.EMAIL_TIMEOUT_MS,
-        });
+          connectionTimeout: 10000,
+          greetingTimeout: 10000,
+          socketTimeout: 10000,
+        } as any);
 
       if (!host) {
         resolve(build(host));
