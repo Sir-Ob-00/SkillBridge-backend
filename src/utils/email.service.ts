@@ -41,15 +41,25 @@ const getTransporter = (): Promise<MailTransporter> => {
           socketTimeout: 10000,
         } as any);
 
+      const finalize = (resolvedHost: string) => {
+        const transporter = build(resolvedHost);
+        transporter.verify((error: Error | null) => {
+          if (error) {
+            console.error('[SMTP VERIFY FAILED]', error);
+          } else {
+            console.log('[SMTP READY]');
+          }
+        });
+        resolve(transporter);
+      };
+
       if (!host) {
-        resolve(build(host));
+        finalize(host);
         return;
       }
 
       dns.lookup(host, { family: 4 }, (err, address) => {
-        // On resolution failure, fall back to the original hostname so
-        // Nodemailer can attempt its own (dual-stack) resolution.
-        resolve(build(err || !address ? host : address));
+        finalize(err || !address ? host : address);
       });
     });
   }
