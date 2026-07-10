@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import * as dns from 'dns';
 import { env } from '../config/env';
 import { EmailVerificationOTP, User } from '@prisma/client';
 import { prisma } from '../config/prisma';
@@ -11,20 +12,51 @@ const OTP_EXPIRY_MS = 10 * 60 * 1000;
 // the port so the transporter works whether EMAIL_PORT is 465 or 587.
 const useImplicitTls = env.EMAIL_PORT === 465;
 
-const transporter = nodemailer.createTransport({
-  host: env.EMAIL_HOST,
-  port: env.EMAIL_PORT,
-  secure: useImplicitTls,
-  requireTLS: !useImplicitTls,
-  auth: {
-    user: env.EMAIL_USER,
-    pass: env.EMAIL_PASS,
-  },
-  // Fail fast on unreachable / slow SMTP servers instead of hanging requests.
-  connectionTimeout: env.EMAIL_TIMEOUT_MS,
-  greetingTimeout: env.EMAIL_TIMEOUT_MS,
-  socketTimeout: env.EMAIL_TIMEOUT_MS,
-});
+type MailTransporter = ReturnType<typeof nodemailer.createTransport>;
+
+// Lazily build (and cache) the transporter. We resolve the SMTP host to an
+// IPv4 address because Nodemailer resolves both A and AAAA records and then
+// randomly picks one; on hosts without IPv6 routes (e.g. Render) it can select
+// an unreachable IPv6 address (ENETUNREACH). Pinning IPv4 avoids that.
+let transporterPromise: Promise<MailTransporter> | null = null;
+
+const getTransporter = (): Promise<MailTransporter> => {
+  if (!transporterPromise) {
+    transporterPromise = new Promise<MailTransporter>((resolve) => {
+      const host = env.EMAIL_HOST;
+      const build = (resolvedHost: string) =>
+        nodemailer.createTransport({
+          host: resolvedHost,
+          port: env.EMAIL_PORT,
+          secure: useImplicitTls,
+          requireTLS: !useImplicitTls,
+          // Keep the real hostname for TLS SNI / certificate validation when
+          // we substitute the resolved IPv4 address above.
+          tls: { servername: host },
+          auth: {
+            user: env.EMAIL_USER,
+            pass: env.EMAIL_PASS,
+          },
+          // Fail fast on unreachable / slow SMTP servers instead of hanging requests.
+          connectionTimeout: env.EMAIL_TIMEOUT_MS,
+          greetingTimeout: env.EMAIL_TIMEOUT_MS,
+          socketTimeout: env.EMAIL_TIMEOUT_MS,
+        });
+
+      if (!host) {
+        resolve(build(host));
+        return;
+      }
+
+      dns.lookup(host, { family: 4 }, (err, address) => {
+        // On resolution failure, fall back to the original hostname so
+        // Nodemailer can attempt its own (dual-stack) resolution.
+        resolve(build(err || !address ? host : address));
+      });
+    });
+  }
+  return transporterPromise;
+};
 
 const ensureOtp = async (userId: string): Promise<EmailVerificationOTP> => {
   const existing = await prisma.emailVerificationOTP.findUnique({ where: { userId } });
@@ -64,6 +96,7 @@ export const sendOTPEmail = async (email: string, otp: string): Promise<void> =>
   };
 
   try {
+    const transporter = await getTransporter();
     await transporter.sendMail(mailOptions);
   } catch (error) {
     const e = error as { message?: string; code?: string; command?: string; response?: string };
