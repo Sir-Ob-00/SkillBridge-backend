@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { adminVerificationController } from './admin.verification.controller';
-import { authenticate } from '../../../middlewares/authenticate';
+import { requireAuth } from '../../../middlewares/requireAuth';
 import { adminOnly } from '../../../middlewares/adminOnly';
 import { validate } from '../../../middlewares/validate';
 import {
@@ -11,7 +11,7 @@ import {
 
 const router = Router();
 
-router.use(authenticate, adminOnly);
+router.use(requireAuth, adminOnly);
 
 router.get('/', validate(listVerificationsQuerySchema, 'query'), adminVerificationController.list);
 router.get('/:id', validate(artisanIdParamSchema, 'params'), adminVerificationController.getById);

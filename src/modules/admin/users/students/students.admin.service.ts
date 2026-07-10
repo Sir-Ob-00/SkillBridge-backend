@@ -23,7 +23,7 @@ export const studentsAdminService = {
     const [items, totalItems] = await Promise.all([
       prisma.studentProfile.findMany({
         where,
-        include: { user: { select: { id: true, name: true, email: true, avatarUrl: true, isSuspended: true, createdAt: true } } },
+        include: { user: { select: { id: true, name: true, email: true, profileImageUrl: true, isSuspended: true, createdAt: true } } },
         orderBy: { createdAt: 'desc' },
         skip,
         take,

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { adminPaymentsController } from './admin.payments.controller';
-import { authenticate } from '../../../middlewares/authenticate';
+import { requireAuth } from '../../../middlewares/requireAuth';
 import { adminOnly } from '../../../middlewares/adminOnly';
 import { validate } from '../../../middlewares/validate';
 import {
@@ -10,7 +10,7 @@ import {
 
 const router = Router();
 
-router.use(authenticate, adminOnly);
+router.use(requireAuth, adminOnly);
 
 router.get('/', validate(listPaymentsQuerySchema, 'query'), adminPaymentsController.list);
 router.get('/:id', validate(paymentIdParamSchema, 'params'), adminPaymentsController.getById);

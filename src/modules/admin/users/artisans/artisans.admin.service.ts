@@ -1,4 +1,4 @@
-import { VerificationStatus } from '@prisma/client';
+import { VerificationReviewStatus } from '@prisma/client';
 import { prisma } from '../../../../config/prisma';
 import { parsePagination } from '../../../../utils/pagination';
 import { buildPaginationMeta } from '../../../../utils/apiResponse';
@@ -9,7 +9,7 @@ import { buildPaginationMeta } from '../../../../utils/apiResponse';
  */
 export const artisansAdminService = {
   async listArtisans(query: {
-    verification?: VerificationStatus;
+    verification?: VerificationReviewStatus;
     search?: string;
     page?: number;
     pageSize?: number;
@@ -32,7 +32,7 @@ export const artisansAdminService = {
       prisma.artisanProfile.findMany({
         where,
         include: {
-          user: { select: { id: true, name: true, email: true, avatarUrl: true, isSuspended: true } },
+          user: { select: { id: true, name: true, email: true, profileImageUrl: true, isSuspended: true } },
         },
         orderBy: { createdAt: 'desc' },
         skip,

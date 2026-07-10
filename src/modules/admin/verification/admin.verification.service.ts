@@ -8,17 +8,17 @@ import { ListVerificationsQuery } from './admin.verification.validators';
 
 const ARTISAN_INCLUDE = {
   user: {
-    select: { id: true, name: true, email: true, phone: true, avatarUrl: true, isSuspended: true },
+    select: { id: true, name: true, email: true, phone: true, profileImageUrl: true, isSuspended: true },
   },
   portfolio: { orderBy: { createdAt: 'desc' as const } },
-  verification: true,
+  verificationDoc: true,
 } satisfies Prisma.ArtisanProfileInclude;
 
 export const adminVerificationService = {
   async list(query: ListVerificationsQuery) {
     const { page, pageSize, skip, take } = parsePagination(query);
 
-    const where = { status: query.status };
+    const where = { applicationStatus: query.status };
 
     const [items, totalItems] = await Promise.all([
       prisma.artisanProfile.findMany({
@@ -39,14 +39,14 @@ export const adminVerificationService = {
   },
 
   async approve(id: string, note: string | undefined, changedBy: string | undefined) {
-    return artisansService.approve(id, note, changedBy);
+    return artisansService.approveArtisan(id, changedBy!, note);
   },
 
   async reject(id: string, note: string, changedBy: string | undefined) {
-    return artisansService.reject(id, note, changedBy);
+    return artisansService.rejectArtisan(id, changedBy!, note);
   },
 
   async requestChanges(id: string, note: string, changedBy: string | undefined) {
-    return artisansService.requestChanges(id, note, changedBy);
+    return artisansService.requestChangesArtisan(id, changedBy!, note);
   },
 };

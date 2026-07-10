@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { adminCategoriesController } from './admin.categories.controller';
-import { authenticate } from '../../../middlewares/authenticate';
+import { requireAuth } from '../../../middlewares/requireAuth';
 import { adminOnly } from '../../../middlewares/adminOnly';
 import { validate } from '../../../middlewares/validate';
 import {
@@ -12,7 +12,7 @@ import {
 
 const router = Router();
 
-router.use(authenticate, adminOnly);
+router.use(requireAuth, adminOnly);
 
 router.get('/', validate(listCategoriesQuerySchema, 'query'), adminCategoriesController.list);
 router.post('/', validate(createCategorySchema), adminCategoriesController.create);

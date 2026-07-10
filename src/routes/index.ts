@@ -11,7 +11,6 @@ import { reportsRouter } from '../modules/reports/reports.routes';
 import { analyticsRouter } from '../modules/analytics/analytics.routes';
 import { chatRouter } from '../modules/messages/messages.routes';
 import { skillsRouter } from '../modules/skills/skills.routes';
-import { onboardingRouter } from '../modules/onboarding/onboarding.routes';
 import { adminRouter } from '../modules/admin/admin.routes';
 
 /**
@@ -32,7 +31,6 @@ export const createApiRouter = (): Router => {
   apiRouter.use('/analytics', analyticsRouter);
   apiRouter.use('/chats', chatRouter);
   apiRouter.use('/skills', skillsRouter);
-  apiRouter.use('/onboarding', onboardingRouter);
   apiRouter.use('/admin', adminRouter);
 
   return apiRouter;

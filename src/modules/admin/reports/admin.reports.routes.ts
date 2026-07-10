@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { adminReportsController } from './admin.reports.controller';
-import { authenticate } from '../../../middlewares/authenticate';
+import { requireAuth } from '../../../middlewares/requireAuth';
 import { adminOnly } from '../../../middlewares/adminOnly';
 import { validate } from '../../../middlewares/validate';
 import {
@@ -11,7 +11,7 @@ import {
 
 const router = Router();
 
-router.use(authenticate, adminOnly);
+router.use(requireAuth, adminOnly);
 
 router.get('/', validate(listReportsQuerySchema, 'query'), adminReportsController.list);
 router.patch(

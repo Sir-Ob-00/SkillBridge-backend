@@ -6,7 +6,7 @@ export const adminReviewsService = {
     return prisma.review.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
-        student: { select: { id: true, name: true, avatarUrl: true } },
+        student: { select: { id: true, name: true, profileImageUrl: true } },
         artisan: { include: { user: { select: { id: true, name: true } } } },
       },
     });

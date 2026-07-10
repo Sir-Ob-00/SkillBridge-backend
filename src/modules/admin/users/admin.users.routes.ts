@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { adminUsersController } from './admin.users.controller';
-import { authenticate } from '../../../middlewares/authenticate';
+import { requireAuth } from '../../../middlewares/requireAuth';
 import { adminOnly } from '../../../middlewares/adminOnly';
 import { validate } from '../../../middlewares/validate';
 import {
@@ -11,7 +11,7 @@ import {
 
 const router = Router();
 
-router.use(authenticate, adminOnly);
+router.use(requireAuth, adminOnly);
 
 // Role-scoped collections must be registered before `/:id`.
 router.get('/', validate(listAdminUsersQuerySchema, 'query'), adminUsersController.list);

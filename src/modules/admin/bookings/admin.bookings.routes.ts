@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { adminBookingsController } from './admin.bookings.controller';
-import { authenticate } from '../../../middlewares/authenticate';
+import { requireAuth } from '../../../middlewares/requireAuth';
 import { adminOnly } from '../../../middlewares/adminOnly';
 import { validate } from '../../../middlewares/validate';
 import {
@@ -10,7 +10,7 @@ import {
 
 const router = Router();
 
-router.use(authenticate, adminOnly);
+router.use(requireAuth, adminOnly);
 
 router.get('/', adminBookingsController.list);
 router.get('/:id', validate(bookingIdParamSchema, 'params'), adminBookingsController.getById);

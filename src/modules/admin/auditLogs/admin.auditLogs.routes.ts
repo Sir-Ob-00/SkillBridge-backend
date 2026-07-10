@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { adminAuditLogsController } from './admin.auditLogs.controller';
-import { authenticate } from '../../../middlewares/authenticate';
+import { requireAuth } from '../../../middlewares/requireAuth';
 import { adminOnly } from '../../../middlewares/adminOnly';
 
 const router = Router();
 
-router.use(authenticate, adminOnly);
+router.use(requireAuth, adminOnly);
 
 router.get('/', adminAuditLogsController.list);
 

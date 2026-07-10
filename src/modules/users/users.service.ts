@@ -44,7 +44,7 @@ export const usersService = {
   async updateAvatar(userId: string, file: any) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { avatarUrl: true },
+      select: { profileImageUrl: true },
     });
 
     if (!user) {
@@ -56,7 +56,7 @@ export const usersService = {
     }
 
     try {
-      const oldPublicId = getPublicIdFromUrl(user.avatarUrl ?? '');
+      const oldPublicId = getPublicIdFromUrl(user.profileImageUrl ?? '');
       if (oldPublicId) {
         await deleteFromCloudinary(oldPublicId).catch(() => {});
       }
@@ -74,7 +74,7 @@ export const usersService = {
 
     const updated = await prisma.user.update({
       where: { id: userId },
-      data: { avatarUrl: imageUrl },
+      data: { profileImageUrl: imageUrl },
       select: PUBLIC_USER_FIELDS,
     });
 

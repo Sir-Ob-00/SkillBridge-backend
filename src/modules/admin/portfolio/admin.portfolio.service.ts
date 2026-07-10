@@ -4,16 +4,16 @@ import { getPublicIdFromUrl, deleteFromCloudinary } from '../../../utils/cloudin
 
 export const adminPortfolioService = {
   async list() {
-    return prisma.portfolioItem.findMany({
+    return prisma.artisanPortfolio.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
-        artisan: { include: { user: { select: { id: true, name: true } } } },
+        artisanProfile: { include: { user: { select: { id: true, name: true } } } },
       },
     });
   },
 
   async remove(id: string) {
-    const item = await prisma.portfolioItem.findUnique({ where: { id } });
+    const item = await prisma.artisanPortfolio.findUnique({ where: { id } });
     if (!item) {
       throw ApiError.notFound('Portfolio item not found.');
     }
@@ -27,7 +27,7 @@ export const adminPortfolioService = {
       // proceed with deletion even if cloudinary cleanup fails
     }
 
-    await prisma.portfolioItem.delete({ where: { id } });
+    await prisma.artisanPortfolio.delete({ where: { id } });
     return { message: 'Portfolio item deleted.' };
   },
 };
