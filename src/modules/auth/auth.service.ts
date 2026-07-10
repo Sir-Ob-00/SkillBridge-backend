@@ -112,12 +112,16 @@ export const authService = {
     const otpResult = await emailService.sendVerificationOtp(user);
 
     return {
-      message: 'If that email exists, a verification code has been sent.',
-    } as any;
+      message: otpResult.message,
+      ...(otpResult.devOtp ? { devOtp: otpResult.devOtp } : {}),
+    };
   },
 
   async login(input: LoginInput) {
-    const user = await prisma.user.findUnique({ where: { email: input.email } });
+    const user = await prisma.user.findUnique({
+      where: { email: input.email },
+      select: { ...PUBLIC_USER_FIELDS, password: true },
+    });
 
     if (!user) {
       throw ApiError.unauthorized('Invalid email or password.');
