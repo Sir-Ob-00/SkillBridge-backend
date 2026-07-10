@@ -59,40 +59,60 @@ export const authService = {
   async register(input: RegisterInput) {
     const existing = await prisma.user.findUnique({ where: { email: input.email } });
     if (existing) {
-      throw ApiError.conflict('An account with this email already exists.');
+      // Don't permanently block users who never finished email verification.
+      if (existing.emailVerified) {
+        throw ApiError.conflict('An account with this email already exists.');
+      }
+      throw ApiError.conflict(
+        'Account already exists but email is not verified. Please verify your email or request a new OTP.'
+      );
     }
 
     const passwordHash = await hashPassword(input.password);
 
-    const user = await prisma.user.create({
-      data: {
-        name: input.name,
-        email: input.email,
-        password: passwordHash,
-        role: input.role,
-        phone: input.phone,
-        emailVerified: false,
-      },
-      select: PUBLIC_USER_FIELDS,
+    // Create the user + profile atomically. OTP generation/email is kept
+    // outside the transaction so we don't hold a DB connection during the
+    // (potentially slow) SMTP call.
+    const user = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          name: input.name,
+          email: input.email,
+          password: passwordHash,
+          role: input.role,
+          phone: input.phone,
+          emailVerified: false,
+        },
+        select: PUBLIC_USER_FIELDS,
+      });
+
+      if (input.role === Role.artisan) {
+        await tx.artisanProfile.create({
+          data: {
+            userId: created.id,
+            applicationStatus: ApplicationStatus.PENDING_PROFILE,
+          },
+        });
+      } else if (input.role === Role.student) {
+        await tx.studentProfile.create({ data: { userId: created.id } });
+      }
+
+      return created;
     });
 
-    if (input.role === Role.artisan) {
-      await prisma.artisanProfile.create({
-        data: {
-          userId: user.id,
-          applicationStatus: ApplicationStatus.PENDING_PROFILE,
-        },
-      });
-    } else if (input.role === Role.student) {
-      await prisma.studentProfile.create({ data: { userId: user.id } });
+    try {
+      const otpResult = await emailService.sendVerificationOtp(user);
+      return {
+        user,
+        ...otpResult,
+      };
+    } catch (error) {
+      // Email delivery failed: remove the partially created account (and its
+      // cascaded profile/OTP) so we don't leave an unverifiable, orphaned user.
+      await prisma.user.delete({ where: { id: user.id } }).catch(() => {});
+      if (error instanceof ApiError) throw error;
+      throw ApiError.internal('Unable to send verification email. Please try again.');
     }
-
-    const otpResult = await emailService.sendVerificationOtp(user);
-
-    return {
-      user,
-      ...otpResult,
-    };
   },
 
   async verifyEmail(input: { email: string; otp: string }) {

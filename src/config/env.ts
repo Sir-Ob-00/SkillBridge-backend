@@ -35,6 +35,7 @@ export const env = {
   EMAIL_USER: process.env.EMAIL_USER ?? '',
   EMAIL_PASS: process.env.EMAIL_PASS ?? '',
   EMAIL_FROM: process.env.EMAIL_FROM ?? 'noreply@skillbridge.dev',
+  EMAIL_TIMEOUT_MS: Number(process.env.EMAIL_TIMEOUT_MS ?? 10000),
 
   isProduction: process.env.NODE_ENV === 'production',
 };

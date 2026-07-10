@@ -15,6 +15,10 @@ const transporter = nodemailer.createTransport({
     user: env.EMAIL_USER,
     pass: env.EMAIL_PASS,
   },
+  // Fail fast on unreachable / slow SMTP servers instead of hanging requests.
+  connectionTimeout: env.EMAIL_TIMEOUT_MS,
+  greetingTimeout: env.EMAIL_TIMEOUT_MS,
+  socketTimeout: env.EMAIL_TIMEOUT_MS,
 });
 
 const ensureOtp = async (userId: string): Promise<EmailVerificationOTP> => {
@@ -69,8 +73,10 @@ export const emailService = {
     try {
       await sendOTPEmail(user.email, otpRecord.otp);
     } catch (error) {
-      console.error('Failed to send verification email:', error);
-      throw ApiError.internal('Failed to send verification email. Please try again later.');
+      // Roll back the OTP we just created so a failed delivery doesn't leave a
+      // dangling, unverifiable record behind.
+      await prisma.emailVerificationOTP.deleteMany({ where: { userId: user.id } }).catch(() => {});
+      throw ApiError.internal('Unable to send verification email. Please try again.');
     }
 
     return {
@@ -102,9 +108,9 @@ export const emailService = {
         where: { id: user.id },
         data: { emailVerified: true },
       }),
-      prisma.emailVerificationOTP.update({
+      // Clean up the OTP once verification succeeds so it can't be reused.
+      prisma.emailVerificationOTP.delete({
         where: { id: record.id },
-        data: { verifiedAt: new Date() },
       }),
     ]);
 
