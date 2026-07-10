@@ -3,7 +3,7 @@ import { ApiError } from '../../../utils/ApiError';
 
 const ARTISAN_INCLUDE = {
   user: {
-    select: { id: true, name: true, avatarUrl: true },
+    select: { id: true, name: true, profileImageUrl: true },
   },
 } as const;
 

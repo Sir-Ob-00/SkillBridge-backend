@@ -55,7 +55,7 @@ export const reviewsService = {
       prisma.review.findMany({
         where,
         include: {
-          student: { select: { id: true, name: true, avatarUrl: true } },
+          student: { select: { id: true, name: true, profileImageUrl: true } },
         },
         orderBy: { createdAt: 'desc' },
         skip,

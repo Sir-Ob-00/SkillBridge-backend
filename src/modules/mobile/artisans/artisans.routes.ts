@@ -5,6 +5,7 @@ import { listReviewsQuerySchema } from '../../reviews/reviews.validators';
 import { requireAuth, optionalAuth } from '../../../middlewares/requireAuth';
 import { requireRole, requireAdmin } from '../../../middlewares/requireRole';
 import { validate } from '../../../middlewares/validate';
+import { requireActiveArtisan } from '../../../middlewares/requireActiveArtisan';
 import {
   upsertArtisanProfileSchema,
   addPortfolioItemSchema,
@@ -35,6 +36,7 @@ router.post(
   '/me/portfolio',
   requireAuth,
   requireRole(['artisan']),
+  requireActiveArtisan,
   validate(addPortfolioItemSchema),
   artisansController.addPortfolioItem
 );
@@ -49,6 +51,7 @@ router.delete(
   '/:id/portfolio/:itemId',
   requireAuth,
   requireRole(['artisan']),
+  requireActiveArtisan,
   validate(portfolioItemParamSchema, 'params'),
   artisansController.removePortfolioItem
 );
@@ -57,6 +60,7 @@ router.post(
   '/:id/services',
   requireAuth,
   requireRole(['artisan']),
+  requireActiveArtisan,
   validate(artisanIdParamSchema, 'params'),
   validate(createServiceSchema),
   artisansController.createService
@@ -65,6 +69,8 @@ router.patch(
   '/:id/services/:serviceId',
   requireAuth,
   requireRole(['artisan']),
+  requireActiveArtisan,
+  validate(artisanIdParamSchema, 'params'),
   validate(serviceIdParamSchema, 'params'),
   validate(updateServiceSchema),
   artisansController.updateService
@@ -73,6 +79,8 @@ router.delete(
   '/:id/services/:serviceId',
   requireAuth,
   requireRole(['artisan']),
+  requireActiveArtisan,
+  validate(artisanIdParamSchema, 'params'),
   validate(serviceIdParamSchema, 'params'),
   artisansController.deleteService
 );
@@ -81,6 +89,7 @@ router.put(
   '/:id/availability',
   requireAuth,
   requireRole(['artisan']),
+  requireActiveArtisan,
   validate(artisanIdParamSchema, 'params'),
   validate(upsertArtisanProfileSchema),
   artisansController.updateAvailability

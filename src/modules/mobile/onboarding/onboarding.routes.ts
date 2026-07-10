@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { onboardingController } from './onboarding.controller';
 import { requireAuth } from '../../../middlewares/requireAuth';
 import { requireRole } from '../../../middlewares/requireRole';
+import { requireEmailVerified } from '../../../middlewares/requireEmailVerified';
 import { validate } from '../../../middlewares/validate';
 import {
   personalSchema,
@@ -12,11 +13,13 @@ import {
   portfolioSchema,
   verificationSchema,
   submitSchema,
+  categoriesSchema,
 } from './onboarding.validators';
 
 const router = Router();
 
 router.use(requireAuth);
+router.use(requireEmailVerified);
 router.use(requireRole(['artisan']));
 
 router.get('/', onboardingController.getStatus);
@@ -28,7 +31,9 @@ router.patch('/services', validate(servicesSchema), onboardingController.updateS
 router.patch('/availability', validate(availabilitySchema), onboardingController.updateAvailability);
 router.patch('/portfolio', validate(portfolioSchema), onboardingController.updatePortfolio);
 router.patch('/verification', validate(verificationSchema), onboardingController.updateVerification);
+router.patch('/categories', validate(categoriesSchema), onboardingController.updateCategories);
 
 router.post('/submit', validate(submitSchema), onboardingController.submitApplication);
+router.get('/history', onboardingController.getHistory);
 
 export const onboardingRouter = router;

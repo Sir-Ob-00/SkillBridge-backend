@@ -22,15 +22,15 @@ const ARTISAN_INCLUDE = {
       id: true,
       name: true,
       email: true,
-      avatarUrl: true,
+      profileImageUrl: true,
       isSuspended: true,
     },
   },
   portfolio: { orderBy: { createdAt: 'desc' as const } },
-  skills: true,
+  skills: { include: { skill: { select: { id: true, name: true, active: true } } } },
   categories: { include: { category: { select: { name: true, active: true } } } },
   availability: true,
-  services: true,
+  services: { include: { category: { select: { id: true, name: true, active: true } } } },
   verificationDoc: true,
   statusHistory: { orderBy: { createdAt: 'desc' as const }, take: 1 },
 } satisfies Prisma.ArtisanProfileInclude;
@@ -39,15 +39,21 @@ const toLegacyProfile = (profile: any) => {
   if (!profile) return null;
   return {
     ...profile,
-    skills: (profile.skills ?? []).map((s: any) => s.name),
+    skills: (profile.skills ?? []).map((s: any) => s.skill?.name).filter(Boolean),
     categories: (profile.categories ?? []).map((c: any) => c.category?.name).filter(Boolean),
     availability: (profile.availability ?? []).map((a: any) => ({
       day: (a.day ?? 'monday').toLowerCase(),
       startTime: a.startTime,
       endTime: a.endTime,
     })),
-    services: profile.services ?? [],
-    portfolio: profile.portfolio ?? [],
+    services: (profile.services ?? []).map((s: any) => ({
+      ...s,
+      categoryName: s.category?.name,
+    })),
+    portfolio: (profile.portfolio ?? []).map((p: any) => ({
+      ...p,
+      imageUrl: p.imageUrl,
+    })),
     verification: profile.verification ?? 'unverified',
   };
 };
@@ -95,7 +101,7 @@ export const artisansService = {
               { businessName: { contains: query.query, mode: 'insensitive' } },
               { bio: { contains: query.query, mode: 'insensitive' } },
               { user: { name: { contains: query.query, mode: 'insensitive' } } },
-              { skills: { some: { name: { contains: query.query, mode: 'insensitive' } } } },
+              { skills: { some: { skill: { name: { contains: query.query, mode: 'insensitive' } } } } },
             ],
           }
         : {}),
@@ -161,11 +167,21 @@ export const artisansService = {
     if (skills && skills.length > 0) {
       const profileRecord = profile.id ? profile : await prisma.artisanProfile.findUnique({ where: { userId } });
       if (profileRecord) {
+        const existingSkills = await prisma.skill.findMany({
+          where: { id: { in: skills } },
+        });
+
+        const validSkillIds = new Set(existingSkills.map((s) => s.id));
+        const invalidSkillIds = skills.filter((id) => !validSkillIds.has(id));
+        if (invalidSkillIds.length > 0) {
+          throw ApiError.badRequest(`Invalid skill IDs: ${invalidSkillIds.join(', ')}`);
+        }
+
         await prisma.artisanSkill.deleteMany({ where: { artisanProfileId: profileRecord.id } });
         await prisma.artisanSkill.createMany({
-          data: skills.map((name) => ({
+          data: existingSkills.map((skill) => ({
             artisanProfileId: profileRecord.id,
-            name: name.trim(),
+            skillId: skill.id,
           })),
           skipDuplicates: true,
         });
@@ -232,6 +248,7 @@ export const artisansService = {
 
     return prisma.artisanService.findMany({
       where: { artisanProfileId: artisanId, isActive: true },
+      include: { category: { select: { id: true, name: true, active: true } } },
       orderBy: { createdAt: 'asc' },
     });
   },
@@ -242,10 +259,16 @@ export const artisansService = {
       throw ApiError.notFound('Artisan profile not found.');
     }
 
-    const { category, ...rest } = input;
+    const category = await prisma.category.findUnique({ where: { id: input.categoryId } });
+    if (!category) {
+      throw ApiError.badRequest('Invalid category.');
+    }
+
+    const { categoryId, ...rest } = input;
 
     return prisma.artisanService.create({
-      data: { artisanProfileId: profile.id, categoryName: category, ...rest },
+      data: { artisanProfileId: profile.id, categoryId, ...rest },
+      include: { category: { select: { id: true, name: true, active: true } } },
     });
   },
 
@@ -260,10 +283,19 @@ export const artisansService = {
       throw ApiError.notFound('Service not found.');
     }
 
-    const { category, ...rest } = input;
+    const data: any = { ...input };
+    if (input.categoryId) {
+      const category = await prisma.category.findUnique({ where: { id: input.categoryId } });
+      if (!category) {
+        throw ApiError.badRequest('Invalid category.');
+      }
+      data.categoryId = input.categoryId;
+    }
+
     return prisma.artisanService.update({
       where: { id: serviceId },
-      data: { ...rest, ...(category ? { categoryName: category } : {}) },
+      data,
+      include: { category: { select: { id: true, name: true, active: true } } },
     });
   },
 

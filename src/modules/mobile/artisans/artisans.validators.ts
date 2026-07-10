@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const upsertArtisanProfileSchema = z.object({
   businessName: z.string().trim().min(2).max(100).optional(),
   bio: z.string().trim().max(1000).optional(),
-  skills: z.array(z.string().trim().min(1)).max(20).optional(),
+  skills: z.array(z.string().uuid()).max(20).optional(),
   categories: z.array(z.string().trim().min(1)).max(10).optional(),
   pricingFrom: z.coerce.number().nonnegative().optional(),
   location: z.string().trim().max(120).optional(),
@@ -61,7 +61,7 @@ export const createServiceSchema = z.object({
   description: z.string().trim().min(10).max(1000),
   price: z.coerce.number().positive(),
   durationMinutes: z.coerce.number().int().positive().max(24 * 60),
-  category: z.string().trim().min(1),
+  categoryId: z.string().uuid('categoryId must be a valid UUID'),
 });
 
 export const updateServiceSchema = createServiceSchema.partial();

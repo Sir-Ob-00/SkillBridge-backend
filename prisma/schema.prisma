@@ -70,7 +70,8 @@ model User {
   password     String
   role         Role     @default(student)
   phone        String?
-  avatarUrl    String?
+  profileImageUrl    String?
+  emailVerified Boolean @default(false)
   isSuspended  Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -80,6 +81,8 @@ model User {
   studentProfile    StudentProfile?
   verification      ArtisanVerification?
   refreshTokens     RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  emailOtp          EmailVerificationOTP?
   bookingsAsStudent Booking[]          @relation("StudentBookings")
   reviewsWritten    Review[]           @relation("StudentReviews")
   reportsFiled      Report[]           @relation("ReporterReports")
@@ -114,8 +117,24 @@ model PasswordResetToken {
   used      Boolean  @default(false)
   createdAt DateTime @default(now())
 
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+model EmailVerificationOTP {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  otp       String
+  expiresAt DateTime
+  verifiedAt DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("email_verification_otps")
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -168,9 +187,9 @@ model ArtisanVerification {
   id                    String                  @id @default(uuid())
   artisanProfileId      String                  @unique
   institution           String
-  studentIdNumber       String
+  studentId             String
   verificationImageUrl  String
-  reviewStatus          VerificationReviewStatus @default(PENDING)
+  status                VerificationReviewStatus @default(PENDING)
   reviewNotes           String?
   reviewedByUserId      String?   @unique
   reviewedAt            DateTime?
@@ -215,13 +234,26 @@ model ArtisanAvailability {
 model ArtisanSkill {
   id              String   @id @default(uuid())
   artisanProfileId String
-  name            String
+  skillId         String
   createdAt       DateTime @default(now())
 
   artisanProfile ArtisanProfile @relation(fields: [artisanProfileId], references: [id], onDelete: Cascade)
+  skill          Skill           @relation(fields: [skillId], references: [id], onDelete: Cascade)
 
+  @@unique([artisanProfileId, skillId])
   @@index([artisanProfileId])
   @@map("artisan_skills")
+}
+
+model Skill {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  artisans ArtisanSkill[]
+
+  @@map("skills")
 }
 
 model ArtisanCategory {
@@ -245,14 +277,16 @@ model ArtisanService {
   description     String
   price           Decimal  @db.Decimal(10, 2)
   durationMinutes Int
-  categoryName    String
+  categoryId      String
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   artisanProfile ArtisanProfile @relation(fields: [artisanProfileId], references: [id], onDelete: Cascade)
+  category       Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@index([artisanProfileId])
+  @@index([categoryId])
   @@map("artisan_services")
 }
 
@@ -365,7 +399,8 @@ model Category {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  artisans ArtisanCategory[]
+  artisans     ArtisanCategory[]
+  services     ArtisanService[]
 
   @@map("categories")
 }

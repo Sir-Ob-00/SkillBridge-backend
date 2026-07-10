@@ -6,7 +6,7 @@ import { SOCKET_EVENTS } from '../../sockets/events';
 import { ApproveArtisanInput, RejectArtisanInput, RequestChangesInput, ListPendingQuery } from './admin.validators';
 
 const ADMIN_INCLUDE = {
-  user: { select: { id: true, name: true, email: true, avatarUrl: true, isSuspended: true } },
+  user: { select: { id: true, name: true, email: true, profileImageUrl: true, isSuspended: true } },
   skills: true,
   categories: { include: { category: { select: { id: true, name: true, active: true } } } },
   availability: true,

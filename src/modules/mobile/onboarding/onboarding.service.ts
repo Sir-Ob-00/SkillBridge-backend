@@ -12,6 +12,7 @@ import {
   PortfolioInput,
   VerificationInput,
   SubmitInput,
+  CategoriesInput,
 } from './onboarding.validators';
 
 interface OnboardingStatusOutput {
@@ -96,7 +97,7 @@ export const onboardingService = {
       where: { id: userId },
       data: {
         phone: input.phone,
-        avatarUrl: input.avatarUrl ?? undefined,
+        profileImageUrl: input.profileImageUrl ?? undefined,
       },
       select: {
         id: true,
@@ -104,7 +105,7 @@ export const onboardingService = {
         email: true,
         role: true,
         phone: true,
-        avatarUrl: true,
+        profileImageUrl: true,
         isSuspended: true,
         createdAt: true,
       },
@@ -149,24 +150,45 @@ export const onboardingService = {
       throw ApiError.notFound('Artisan profile not found.');
     }
 
+    const existingSkills = await prisma.skill.findMany({
+      where: { id: { in: input.skillIds } },
+    });
+
+    const existingIds = new Set(existingSkills.map((s) => s.id));
+    const invalidIds = input.skillIds.filter((id) => !existingIds.has(id));
+    if (invalidIds.length > 0) {
+      throw ApiError.badRequest(`Invalid skill IDs: ${invalidIds.join(', ')}`);
+    }
+
     await prisma.$transaction([
       prisma.artisanSkill.deleteMany({ where: { artisanProfileId: profile.id } }),
       prisma.artisanSkill.createMany({
-        data: input.names.map((name) => ({
+        data: existingSkills.map((skill) => ({
           artisanProfileId: profile.id,
-          name: name.trim(),
+          skillId: skill.id,
         })),
         skipDuplicates: true,
       }),
     ]);
 
-    return input.names;
+    return existingSkills.map((s) => s.name);
   },
 
   async updateServices(userId: string, input: ServicesInput) {
     const profile = await prisma.artisanProfile.findUnique({ where: { userId } });
     if (!profile) {
       throw ApiError.notFound('Artisan profile not found.');
+    }
+
+    const categoryIds = [...new Set(input.items.map((item) => item.categoryId))];
+    const validCategories = await prisma.category.findMany({
+      where: { id: { in: categoryIds } },
+    });
+
+    const validCategoryIds = new Set(validCategories.map((c) => c.id));
+    const invalidCategoryIds = categoryIds.filter((id) => !validCategoryIds.has(id));
+    if (invalidCategoryIds.length > 0) {
+      throw ApiError.badRequest(`Invalid category IDs: ${invalidCategoryIds.join(', ')}`);
     }
 
     const services = await prisma.$transaction(
@@ -178,7 +200,7 @@ export const onboardingService = {
             description: item.description.trim(),
             price: item.price,
             durationMinutes: item.durationMinutes,
-            categoryName: item.categoryName.trim(),
+            categoryId: item.categoryId,
             isActive: item.isActive,
           },
         })
@@ -247,15 +269,15 @@ export const onboardingService = {
       create: {
         artisanProfileId: profile.id,
         institution: input.institution.trim(),
-        studentIdNumber: input.studentIdNumber.trim(),
+        studentId: input.studentId.trim(),
         verificationImageUrl: input.verificationImageUrl,
-        reviewStatus: 'PENDING',
+        status: 'PENDING',
       },
       update: {
         institution: input.institution.trim(),
-        studentIdNumber: input.studentIdNumber.trim(),
+        studentId: input.studentId.trim(),
         verificationImageUrl: input.verificationImageUrl,
-        reviewStatus: 'PENDING',
+        status: 'PENDING',
         reviewNotes: null,
         reviewedByUserId: null,
         reviewedAt: null,
@@ -263,6 +285,36 @@ export const onboardingService = {
     });
 
     return verification;
+  },
+
+  async updateCategories(userId: string, input: CategoriesInput) {
+    const profile = await prisma.artisanProfile.findUnique({ where: { userId } });
+    if (!profile) {
+      throw ApiError.notFound('Artisan profile not found.');
+    }
+
+    const existingCategories = await prisma.category.findMany({
+      where: { id: { in: input.categoryIds } },
+    });
+
+    const existingIds = new Set(existingCategories.map((c) => c.id));
+    const invalidIds = input.categoryIds.filter((id) => !existingIds.has(id));
+    if (invalidIds.length > 0) {
+      throw ApiError.badRequest(`Invalid category IDs: ${invalidIds.join(', ')}`);
+    }
+
+    await prisma.$transaction([
+      prisma.artisanCategory.deleteMany({ where: { artisanProfileId: profile.id } }),
+      prisma.artisanCategory.createMany({
+        data: existingCategories.map((cat) => ({
+          artisanProfileId: profile.id,
+          categoryId: cat.id,
+        })),
+        skipDuplicates: true,
+      }),
+    ]);
+
+    return existingCategories.map((cat) => cat.name);
   },
 
   async submitApplication(userId: string, input: SubmitInput) {
@@ -332,5 +384,30 @@ export const onboardingService = {
     emitToUser(profile.userId, SOCKET_EVENTS.ARTISAN_VERIFIED, updated);
 
     return updated;
+  },
+
+  async getHistory(userId: string) {
+    const profile = await prisma.artisanProfile.findUnique({ where: { userId } });
+    if (!profile) {
+      throw ApiError.notFound('Artisan profile not found.');
+    }
+
+    const history = await prisma.artisanStatusChange.findMany({
+      where: { artisanProfileId: profile.id },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        fromStatus: true,
+        toStatus: true,
+        notes: true,
+        createdAt: true,
+      },
+    });
+
+    return history.map((item) => ({
+      fromStatus: item.fromStatus,
+      toStatus: item.toStatus,
+      notes: item.notes,
+      createdAt: item.createdAt.toISOString(),
+    }));
   },
 };

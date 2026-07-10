@@ -13,10 +13,10 @@ import {
 const BOOKING_INCLUDE = {
   artisan: {
     include: {
-      user: { select: { id: true, name: true, avatarUrl: true } },
+      user: { select: { id: true, name: true, profileImageUrl: true } },
     },
   },
-  student: { select: { id: true, name: true, avatarUrl: true } },
+  student: { select: { id: true, name: true, profileImageUrl: true } },
 } satisfies Prisma.BookingInclude;
 
 /** Valid status transitions, keyed by current status. */
@@ -154,6 +154,13 @@ export const bookingsService = {
     const isAdmin = role === Role.admin || role === Role.super_admin;
     const isArtisanOwner = role === Role.artisan && booking.artisan.userId === userId;
     const isStudentOwner = role === Role.student && booking.studentId === userId;
+
+    if (isArtisanOwner && !isAdmin) {
+      const artisan = await prisma.artisanProfile.findUnique({ where: { id: booking.artisanId } });
+      if (!artisan || artisan.applicationStatus !== 'ACTIVE' || artisan.isSuspended) {
+        throw ApiError.forbidden('Your artisan profile must be active to manage bookings.');
+      }
+    }
 
     // Role-based transition rules:
     // - Artisans: accept / reject / start (in_progress) / complete

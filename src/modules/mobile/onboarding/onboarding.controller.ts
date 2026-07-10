@@ -11,6 +11,7 @@ import {
   portfolioSchema,
   verificationSchema,
   submitSchema,
+  categoriesSchema,
 } from './onboarding.validators';
 
 type RequestBody<T> = Request<unknown, unknown, T>;
@@ -70,10 +71,22 @@ export const onboardingController = {
     }
   ),
 
+  updateCategories: asyncHandler(
+    async (req: RequestBody<typeof categoriesSchema._type>, res: Response) => {
+      const categories = await onboardingService.updateCategories(req.user!.id, req.body);
+      return sendSuccess(res, categories, 'Categories updated.');
+    }
+  ),
+
   submitApplication: asyncHandler(
     async (req: RequestBody<typeof submitSchema._type>, res: Response) => {
       const result = await onboardingService.submitApplication(req.user!.id, req.body);
       return sendSuccess(res, result, 'Application submitted successfully.');
     }
   ),
+
+  getHistory: asyncHandler(async (req: Request, res: Response) => {
+    const history = await onboardingService.getHistory(req.user!.id);
+    return sendSuccess(res, history);
+  }),
 };

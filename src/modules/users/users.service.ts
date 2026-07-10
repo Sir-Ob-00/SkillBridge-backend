@@ -10,7 +10,7 @@ const PUBLIC_USER_FIELDS = {
   email: true,
   role: true,
   phone: true,
-  avatarUrl: true,
+  profileImageUrl: true,
   isSuspended: true,
   createdAt: true,
   updatedAt: true,

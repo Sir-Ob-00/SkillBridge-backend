@@ -8,9 +8,9 @@ interface DailyTrendRow {
 }
 
 interface CategoryCountRow {
-  categoryName: string;
+  categoryId: string;
   _count: {
-    categoryName: number;
+    categoryId: number;
   };
 }
 
@@ -84,14 +84,22 @@ export const analyticsService = {
   /** Top categories by number of bookable services listed. */
   async getTopCategories(limit = 10) {
     const rows = await prisma.artisanService.groupBy({
-      by: ['categoryName'],
+      by: ['categoryId'],
       where: { isActive: true },
-      _count: { categoryName: true },
-      orderBy: { _count: { categoryName: 'desc' } },
+      _count: { categoryId: true },
+      orderBy: { _count: { categoryId: 'desc' } },
       take: limit,
     });
 
-    return rows.map((row) => ({ category: row.categoryName, count: row._count.categoryName }));
+    const categoryIds = rows.map((row) => row.categoryId);
+    const categories = await prisma.category.findMany({
+      where: { id: { in: categoryIds } },
+      select: { id: true, name: true },
+    });
+
+    const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
+
+    return rows.map((row) => ({ category: categoryMap.get(row.categoryId) ?? row.categoryId, count: row._count.categoryId }));
   },
 
   async getAverageRatings() {

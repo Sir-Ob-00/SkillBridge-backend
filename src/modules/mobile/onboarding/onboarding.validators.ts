@@ -3,7 +3,7 @@ import { ApplicationStatus, DayOfWeek } from '@prisma/client';
 
 export const personalSchema = z.object({
   phone: z.string().trim().min(7).max(20).optional(),
-  avatarUrl: z.string().trim().url().optional().nullable(),
+  profileImageUrl: z.string().trim().url().optional().nullable(),
 });
 
 export const businessSchema = z.object({
@@ -14,7 +14,7 @@ export const businessSchema = z.object({
 });
 
 export const skillsSchema = z.object({
-  names: z.array(z.string().trim().min(1)).min(1, 'At least one skill is required').max(20),
+  skillIds: z.array(z.string().uuid()).min(1, 'At least one skill is required').max(20),
 });
 
 export const servicesSchema = z.object({
@@ -24,7 +24,7 @@ export const servicesSchema = z.object({
       description: z.string().trim().min(10, 'Description must be at least 10 characters').max(1000),
       price: z.coerce.number().positive('Price must be positive'),
       durationMinutes: z.coerce.number().int().positive('Duration must be positive').max(24 * 60),
-      categoryName: z.string().trim().min(1),
+      categoryId: z.string().uuid('categoryId must be a valid UUID'),
       isActive: z.boolean().default(true),
     })
   ).min(1, 'At least one service is required'),
@@ -51,12 +51,16 @@ export const portfolioSchema = z.object({
 
 export const verificationSchema = z.object({
   institution: z.string().trim().min(2, 'Institution name is required').max(200),
-  studentIdNumber: z.string().trim().min(1, 'Student ID is required'),
+  studentId: z.string().trim().min(1, 'Student ID is required'),
   verificationImageUrl: z.string().url('verificationImageUrl must be a valid URL'),
 });
 
 export const submitSchema = z.object({
   notes: z.string().trim().max(1000).optional().nullable(),
+});
+
+export const categoriesSchema = z.object({
+  categoryIds: z.array(z.string().uuid()).min(1, 'At least one category is required').max(10),
 });
 
 export type PersonalInfoInput = z.infer<typeof personalSchema>;
@@ -67,3 +71,4 @@ export type AvailabilityInput = z.infer<typeof availabilitySchema>;
 export type PortfolioInput = z.infer<typeof portfolioSchema>;
 export type VerificationInput = z.infer<typeof verificationSchema>;
 export type SubmitInput = z.infer<typeof submitSchema>;
+export type CategoriesInput = z.infer<typeof categoriesSchema>;

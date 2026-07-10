@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { Role } from '@prisma/client';
+import { Role, ApplicationStatus } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { ApiError } from '../../utils/ApiError';
 import { hashPassword, comparePassword } from '../../utils/password';
@@ -16,6 +16,7 @@ import {
   ForgotPasswordInput,
   ResetPasswordInput,
 } from './auth.validators';
+import { emailService } from '../../utils/email.service';
 
 const PUBLIC_USER_FIELDS = {
   id: true,
@@ -23,7 +24,8 @@ const PUBLIC_USER_FIELDS = {
   email: true,
   role: true,
   phone: true,
-  avatarUrl: true,
+  profileImageUrl: true,
+  emailVerified: true,
   isSuspended: true,
   createdAt: true,
 } as const;
@@ -69,21 +71,49 @@ export const authService = {
         password: passwordHash,
         role: input.role,
         phone: input.phone,
+        emailVerified: false,
       },
       select: PUBLIC_USER_FIELDS,
     });
 
-    // Auto-create the role-specific profile shell so subsequent
-    // profile-update calls always have a row to update.
     if (input.role === Role.artisan) {
-      await prisma.artisanProfile.create({ data: { userId: user.id } });
+      await prisma.artisanProfile.create({
+        data: {
+          userId: user.id,
+          applicationStatus: ApplicationStatus.PENDING_PROFILE,
+        },
+      });
     } else if (input.role === Role.student) {
       await prisma.studentProfile.create({ data: { userId: user.id } });
     }
 
-    const tokens = await issueTokens(user.id, user.role);
+    const otpResult = await emailService.sendVerificationOtp(user);
 
-    return { user, ...tokens };
+    return {
+      user,
+      ...otpResult,
+    };
+  },
+
+  async verifyEmail(input: { email: string; otp: string }) {
+    return emailService.verifyEmail(input.email, input.otp);
+  },
+
+  async resendEmailOtp(email: string) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return { message: 'If that email exists, a verification code has been sent.' };
+    }
+
+    if (user.emailVerified) {
+      return { message: 'Email is already verified.' };
+    }
+
+    const otpResult = await emailService.sendVerificationOtp(user);
+
+    return {
+      message: 'If that email exists, a verification code has been sent.',
+    } as any;
   },
 
   async login(input: LoginInput) {
@@ -95,6 +125,10 @@ export const authService = {
 
     if (user.isSuspended) {
       throw ApiError.forbidden('This account has been suspended.');
+    }
+
+    if (!user.emailVerified) {
+      throw ApiError.forbidden('Please verify your email before logging in.', 'EMAIL_NOT_VERIFIED');
     }
 
     const passwordMatches = await comparePassword(input.password, user.password);

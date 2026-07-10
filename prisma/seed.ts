@@ -20,6 +20,7 @@ async function main() {
       email: 'admin@skillbridge.dev',
       password: adminPassword,
       role: Role.super_admin,
+      emailVerified: true,
     },
   });
 
@@ -33,6 +34,7 @@ async function main() {
       email: 'student@skillbridge.dev',
       password: studentPassword,
       role: Role.student,
+      emailVerified: true,
     },
   });
   await prisma.studentProfile.upsert({
@@ -51,6 +53,7 @@ async function main() {
       email: 'artisan@skillbridge.dev',
       password: artisanPassword,
       role: Role.artisan,
+      emailVerified: true,
     },
   });
 
@@ -71,12 +74,26 @@ async function main() {
     },
   });
 
-  await prisma.artisanSkill.createMany({
+  await prisma.skill.createMany({
     data: [
-      { artisanProfileId: artisanProfile.id, name: 'Haircuts' },
-      { artisanProfileId: artisanProfile.id, name: 'Beard trimming' },
-      { artisanProfileId: artisanProfile.id, name: 'Hair styling' },
+      { name: 'Haircuts' },
+      { name: 'Beard trimming' },
+      { name: 'Hair styling' },
     ],
+    skipDuplicates: true,
+  });
+
+  const skillRecords = await prisma.skill.findMany({
+    where: { name: { in: ['Haircuts', 'Beard trimming', 'Hair styling'] } },
+  });
+
+  const skillMap = new Map(skillRecords.map((s) => [s.name, s.id]));
+
+  await prisma.artisanSkill.createMany({
+    data: ['Haircuts', 'Beard trimming', 'Hair styling'].map((name) => ({
+      artisanProfileId: artisanProfile.id,
+      skillId: skillMap.get(name)!,
+    })),
     skipDuplicates: true,
   });
 
@@ -105,9 +122,9 @@ async function main() {
     create: {
       artisanProfileId: artisanProfile.id,
       institution: 'KNUST',
-      studentIdNumber: 'STU-2024-001',
+      studentId: 'STU-2024-001',
       verificationImageUrl: 'https://example.com/verification.jpg',
-      reviewStatus: VerificationReviewStatus.APPROVED,
+      status: VerificationReviewStatus.APPROVED,
       reviewedAt: new Date('2025-01-02'),
       reviewedByUserId: (await prisma.user.findUnique({ where: { email: 'admin@skillbridge.dev' } }))!.id,
     },
@@ -124,7 +141,7 @@ async function main() {
       description: 'A clean, classic haircut tailored to your style.',
       price: 25,
       durationMinutes: 30,
-      categoryName: 'Barbering',
+      categoryId: (await prisma.category.findFirst({ where: { name: 'Barbering' } }))!.id,
     },
   });
 

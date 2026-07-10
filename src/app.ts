@@ -34,6 +34,8 @@ import { cmsRouter } from './modules/admin/cms/cms.routes';
 import { verificationRouter } from './modules/admin/verification/verification.routes';
 import { portfolioRouter } from './modules/admin/portfolio/portfolio.routes';
 import { uploadsRouter } from './modules/admin/uploads/uploads.routes';
+import { uploadsPublicRouter } from './modules/uploads/uploads.routes';
+import { applicationsRouter } from './modules/admin/applications/applications.routes';
 
 export const createApp = (): Express => {
   const app = express();
@@ -77,6 +79,8 @@ export const createApp = (): Express => {
   apiRouter.use('/admin/verifications', verificationRouter);
   apiRouter.use('/admin/portfolios', portfolioRouter);
   apiRouter.use('/admin/uploads', uploadsRouter);
+  apiRouter.use('/uploads', uploadsPublicRouter);
+  apiRouter.use('/admin/applications', applicationsRouter);
   // Shared analytics is also available under /api/v1/admin/analytics
   apiRouter.use('/admin/analytics', analyticsRouter);
   // Legacy admin endpoints (approve/reject/pending) remain available under /api/v1/admin

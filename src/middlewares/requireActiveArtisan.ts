@@ -3,8 +3,9 @@ import { ApiError } from '../utils/ApiError';
 import { ApplicationStatus } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import type { ArtisanProfile } from '@prisma/client';
+import { asyncHandler } from '../utils/asyncHandler';
 
-export const requireActiveArtisan = async (
+export const requireActiveArtisan = asyncHandler(async (
   req: Request,
   _res: Response,
   next: NextFunction
@@ -38,4 +39,4 @@ export const requireActiveArtisan = async (
   }
 
   next();
-};
+});

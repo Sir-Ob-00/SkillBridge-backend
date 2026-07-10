@@ -13,7 +13,7 @@ export const profileService = {
     return prisma.user.update({
       where: { id: userId },
       data,
-      select: { id: true, name: true, email: true, phone: true, avatarUrl: true, role: true, createdAt: true },
+      select: { id: true, name: true, email: true, phone: true, profileImageUrl: true, role: true, createdAt: true },
     });
   },
 };
