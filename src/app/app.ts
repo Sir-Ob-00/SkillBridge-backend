@@ -9,13 +9,27 @@ import { errorHandler, notFoundHandler } from '../middlewares/errorHandler';
 import { createApiRouter } from '../routes';
 import { setupSwagger } from '../docs/swagger';
 
+const allowedOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim());
+
+const corsOptions = {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (allowedOrigins.some((pattern) => pattern.startsWith('exp://') && origin.startsWith('exp://'))) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'), false);
+  },
+  credentials: true,
+};
+
 export const createApp = (): Express => {
   const app = express();
 
   app.set("trust proxy", 1);
 
   app.use(helmet());
-  app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
+  app.use(cors(corsOptions));
   app.use(express.json({ limit: '2mb' }));
   app.use(express.urlencoded({ extended: true }));
   app.use(morgan(env.isProduction ? 'combined' : 'dev'));

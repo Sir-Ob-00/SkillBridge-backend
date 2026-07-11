@@ -20,9 +20,18 @@ declare module 'socket.io' {
 }
 
 export const initSockets = (httpServer: HttpServer): Server => {
+  const allowedOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim());
+
   const io = new Server(httpServer, {
     cors: {
-      origin: env.CORS_ORIGIN,
+      origin: (origin: string | undefined) => {
+        if (!origin) return true;
+        if (allowedOrigins.includes(origin)) return true;
+        if (allowedOrigins.some((pattern) => pattern.startsWith('exp://') && origin.startsWith('exp://'))) {
+          return true;
+        }
+        return false;
+      },
       methods: ['GET', 'POST'],
     },
   });
