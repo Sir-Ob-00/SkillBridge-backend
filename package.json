@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "main": "dist/app/server.js",
+  "prisma": {
+    "schema": "prisma/schema.prisma"
+  },
   "scripts": {
     "dev": "tsx src/app/server.ts",
     "build": "tsc",
