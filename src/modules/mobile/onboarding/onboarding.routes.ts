@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { onboardingController } from './onboarding.controller';
 import { requireAuth } from '../../../middlewares/requireAuth';
 import { requireRole } from '../../../middlewares/requireRole';
-import { requireEmailVerified } from '../../../middlewares/requireEmailVerified';
 import { validate } from '../../../middlewares/validate';
 import {
   personalSchema,
@@ -19,7 +18,6 @@ import {
 const router = Router();
 
 router.use(requireAuth);
-router.use(requireEmailVerified);
 router.use(requireRole(['artisan']));
 
 router.get('/', onboardingController.getStatus);

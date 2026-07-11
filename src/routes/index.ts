@@ -12,6 +12,7 @@ import { analyticsRouter } from '../modules/analytics/analytics.routes';
 import { chatRouter } from '../modules/messages/messages.routes';
 import { skillsRouter } from '../modules/skills/skills.routes';
 import { adminRouter } from '../modules/admin/admin.routes';
+import * as adminRouters from '../modules/admin';
 
 /**
  * Builds the `/api/v1` router. Mobile app endpoints stay unchanged under their
@@ -31,7 +32,28 @@ export const createApiRouter = (): Router => {
   apiRouter.use('/analytics', analyticsRouter);
   apiRouter.use('/chats', chatRouter);
   apiRouter.use('/skills', skillsRouter);
+
   apiRouter.use('/admin', adminRouter);
+  apiRouter.use('/admin/auth', adminRouters.adminAuthRouter);
+  apiRouter.use('/admin/profile', adminRouters.adminProfileRouter);
+  apiRouter.use('/admin/dashboard', adminRouters.dashboardRouter);
+  apiRouter.use('/admin/students', adminRouters.adminStudentsRouter);
+  apiRouter.use('/admin/artisans', adminRouters.adminArtisansRouter);
+  apiRouter.use('/admin/verifications', adminRouters.adminVerificationsRouter);
+  apiRouter.use('/admin/categories', adminRouters.adminCategoriesRouter);
+  apiRouter.use('/admin/bookings', adminRouters.adminBookingsRouter);
+  apiRouter.use('/admin/reviews', adminRouters.adminReviewsRouter);
+  apiRouter.use('/admin/reports', adminRouters.adminReportsRouter);
+  apiRouter.use('/admin/notifications', adminRouters.adminNotificationsRouter);
+  apiRouter.use('/admin/analytics', adminRouters.adminAnalyticsRouter);
+  apiRouter.use('/admin/settings', adminRouters.adminSettingsRouter);
+  apiRouter.use('/admin/users', adminRouters.adminUsersRouter);
+  apiRouter.use('/admin/audit-logs', adminRouters.adminAuditLogsRouter);
+  apiRouter.use('/admin/applications', adminRouters.applicationsRouter);
+  apiRouter.use('/admin/portfolio', adminRouters.adminPortfoliosRouter);
+  apiRouter.use('/admin/cms', adminRouters.adminCmsRouter);
+  apiRouter.use('/admin/uploads', adminRouters.uploadsRouter);
+  apiRouter.use('/admin/payments', adminRouters.adminPaymentsRouter);
 
   return apiRouter;
 };

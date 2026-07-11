@@ -30,8 +30,5 @@ export const env = {
   CLOUDINARY_API_KEY: required('CLOUDINARY_API_KEY'),
   CLOUDINARY_API_SECRET: required('CLOUDINARY_API_SECRET'),
 
-  RESEND_API_KEY: required('RESEND_API_KEY'),
-  EMAIL_FROM: process.env.EMAIL_FROM ?? 'noreply@skillbridge.dev',
-
   isProduction: process.env.NODE_ENV === 'production',
 };

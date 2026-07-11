@@ -6,4 +6,10 @@ export const adminUpdateProfileSchema = z.object({
   avatarUrl: z.string().url().optional(),
 });
 
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: z.string().min(8, 'Password must be at least 8 characters'),
+});
+
 export type AdminUpdateProfileInput = z.infer<typeof adminUpdateProfileSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

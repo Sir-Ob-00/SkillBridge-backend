@@ -15,6 +15,14 @@ export const reviewNoteSchema = z.object({
   note: z.string().trim().min(2).max(1000).optional(),
 });
 
+export const addNoteSchema = z.object({
+  note: z.string().trim().min(2).max(2000),
+});
+
+export const verificationStatusSchema = z.object({
+  status: z.enum(['verified', 'rejected', 'pending', 'changes']),
+});
+
 export type ListVerificationsQuery = z.infer<typeof listVerificationsQuerySchema>;
 export type ArtisanIdParam = z.infer<typeof artisanIdParamSchema>;
 export type ReviewNoteInput = z.infer<typeof reviewNoteSchema>;

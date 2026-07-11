@@ -7,7 +7,6 @@ import { prisma } from '../config/prisma';
 export interface AuthenticatedUser {
   id: string;
   role: Role;
-  emailVerified: boolean;
 }
 
 declare global {
@@ -36,14 +35,14 @@ export const requireAuth = async (req: Request, _res: Response, next: NextFuncti
     const payload = verifyAccessToken(token);
     const dbUser = await prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, role: true, emailVerified: true, isSuspended: true },
+      select: { id: true, role: true, isSuspended: true },
     });
 
     if (!dbUser || dbUser.isSuspended) {
       throw ApiError.unauthorized('Account is no longer active.');
     }
 
-    req.user = { id: dbUser.id, role: dbUser.role, emailVerified: dbUser.emailVerified };
+    req.user = { id: dbUser.id, role: dbUser.role };
     next();
   } catch {
     throw ApiError.unauthorized('Invalid or expired access token');
@@ -67,11 +66,11 @@ export const optionalAuth = async (req: Request, _res: Response, next: NextFunct
     const payload = verifyAccessToken(token);
     const dbUser = await prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, role: true, emailVerified: true, isSuspended: true },
+      select: { id: true, role: true, isSuspended: true },
     });
 
     if (dbUser && !dbUser.isSuspended) {
-      req.user = { id: dbUser.id, role: dbUser.role, emailVerified: dbUser.emailVerified };
+      req.user = { id: dbUser.id, role: dbUser.role };
     }
   } catch {
     // ignore invalid token for optional auth

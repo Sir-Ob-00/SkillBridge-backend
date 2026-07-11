@@ -20,7 +20,6 @@ async function main() {
       email: 'admin@skillbridge.dev',
       password: adminPassword,
       role: Role.super_admin,
-      emailVerified: true,
     },
   });
 
@@ -34,7 +33,6 @@ async function main() {
       email: 'student@skillbridge.dev',
       password: studentPassword,
       role: Role.student,
-      emailVerified: true,
     },
   });
   await prisma.studentProfile.upsert({
@@ -53,7 +51,6 @@ async function main() {
       email: 'artisan@skillbridge.dev',
       password: artisanPassword,
       role: Role.artisan,
-      emailVerified: true,
     },
   });
 

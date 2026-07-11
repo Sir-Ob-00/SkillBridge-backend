@@ -18,7 +18,6 @@ enum Role {
 }
 
 enum ApplicationStatus {
-  EMAIL_VERIFICATION_PENDING
   PENDING_PROFILE
   PENDING_REVIEW
   UNDER_REVIEW
@@ -71,7 +70,6 @@ model User {
   role         Role     @default(student)
   phone        String?
   profileImageUrl    String?
-  emailVerified Boolean @default(false)
   isSuspended  Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -82,7 +80,6 @@ model User {
   verification      ArtisanVerification?
   refreshTokens     RefreshToken[]
   passwordResetTokens PasswordResetToken[]
-  emailOtp          EmailVerificationOTP?
   bookingsAsStudent Booking[]          @relation("StudentBookings")
   reviewsWritten    Review[]           @relation("StudentReviews")
   reportsFiled      Report[]           @relation("ReporterReports")
@@ -121,20 +118,6 @@ model PasswordResetToken {
 
   @@index([userId])
   @@map("password_reset_tokens")
-}
-
-model EmailVerificationOTP {
-  id        String   @id @default(uuid())
-  userId    String   @unique
-  otp       String
-  expiresAt DateTime
-  verifiedAt DateTime?
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@map("email_verification_otps")
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -416,6 +399,9 @@ model Report {
   reason       String
   details      String?
   status       ReportStatus @default(open)
+  assignedTo   String?
+  resolution   String?
+  closedAt     DateTime?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
@@ -447,4 +433,66 @@ model Message {
   @@index([senderId])
   @@index([receiverId])
   @@map("messages")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ADMIN: NOTIFICATIONS
+// ─────────────────────────────────────────────────────────────────────────
+
+model Notification {
+  id           String   @id @default(uuid())
+  title        String
+  message      String
+  type         String   @default("info") // info | success | warning | error
+  targetUserId String?
+  targetRole   Role?
+  read         Boolean  @default(false)
+  createdBy    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([targetUserId])
+  @@index([targetRole])
+  @@map("notifications")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ADMIN: AUDIT LOGS
+// ─────────────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String    @id @default(uuid())
+  adminId    String?
+  action     String // CREATE | UPDATE | DELETE | LOGIN | LOGOUT | APPROVE | REJECT | SUSPEND | etc.
+  resource   String // user | artisan | booking | review | report | category | settings | admin
+  resourceId String?
+  ipAddress  String?
+  oldValue   Json?
+  newValue   Json?
+  createdAt  DateTime  @default(now())
+
+  @@index([adminId])
+  @@index([resource])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ADMIN: SYSTEM SETTINGS (singleton row)
+// ─────────────────────────────────────────────────────────────────────────
+
+model SystemSettings {
+  id                    String   @id @default("singleton")
+  appName               String   @default("SkillBridge")
+  supportEmail          String   @default("support@skillbridge.dev")
+  maintenanceMode       Boolean  @default(false)
+  allowNewRegistrations Boolean  @default(true)
+  bookingLeadTimeHours  Int      @default(24)
+  maxBookingsPerDay     Int      @default(5)
+  notifyOnNewReport     Boolean  @default(true)
+  notifyOnNewBooking    Boolean  @default(true)
+  featuredArtisanIds    String[] @default([])
+  updatedAt             DateTime @updatedAt
+
+  @@map("system_settings")
 }

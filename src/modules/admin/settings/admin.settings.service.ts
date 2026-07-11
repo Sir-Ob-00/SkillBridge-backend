@@ -1,35 +1,64 @@
+import { prisma } from '../../../config/prisma';
+import { ApiError } from '../../../utils/ApiError';
 import { UpdateSettingsInput } from './admin.settings.validators';
 
-export interface SystemSettings {
-  appName: string;
-  supportEmail: string;
-  maintenanceMode: boolean;
-  allowNewRegistrations: boolean;
-}
-
-/**
- * System settings are held in-memory. A persistent `Setting` model + migration
- * can be added later when durable storage is required.
- */
-const settings: SystemSettings = {
-  appName: 'SkillBridge',
-  supportEmail: 'support@skillbridge.dev',
-  maintenanceMode: false,
-  allowNewRegistrations: true,
-};
-
 export const adminSettingsService = {
-  getSettings(): SystemSettings {
-    return { ...settings };
+  async getSettings() {
+    const settings = await prisma.systemSettings.findUnique({
+      where: { id: 'singleton' },
+    });
+    if (!settings) {
+      return {
+        appName: 'SkillBridge',
+        supportEmail: 'support@skillbridge.dev',
+        maintenanceMode: false,
+        allowNewRegistrations: true,
+        bookingLeadTimeHours: 24,
+        maxBookingsPerDay: 5,
+        notifyOnNewReport: true,
+        notifyOnNewBooking: true,
+        featuredArtisanIds: [],
+      };
+    }
+    return settings;
   },
 
-  updateSettings(input: UpdateSettingsInput): SystemSettings {
-    if (input.appName !== undefined) settings.appName = input.appName;
-    if (input.supportEmail !== undefined) settings.supportEmail = input.supportEmail;
-    if (input.maintenanceMode !== undefined) settings.maintenanceMode = input.maintenanceMode;
-    if (input.allowNewRegistrations !== undefined)
-      settings.allowNewRegistrations = input.allowNewRegistrations;
+  async updateSettings(input: UpdateSettingsInput) {
+    const existing = await prisma.systemSettings.findUnique({
+      where: { id: 'singleton' },
+    });
 
-    return { ...settings };
+    if (!existing) {
+      const created = await prisma.systemSettings.create({
+        data: {
+          id: 'singleton',
+          appName: input.appName ?? 'SkillBridge',
+          supportEmail: input.supportEmail ?? 'support@skillbridge.dev',
+          maintenanceMode: input.maintenanceMode ?? false,
+          allowNewRegistrations: input.allowNewRegistrations ?? true,
+          bookingLeadTimeHours: input.bookingLeadTimeHours ?? 24,
+          maxBookingsPerDay: input.maxBookingsPerDay ?? 5,
+          notifyOnNewReport: input.notifyOnNewReport ?? true,
+          notifyOnNewBooking: input.notifyOnNewBooking ?? true,
+          featuredArtisanIds: input.featuredArtisanIds ?? [],
+        },
+      });
+      return created;
+    }
+
+    return prisma.systemSettings.update({
+      where: { id: 'singleton' },
+      data: {
+        ...(input.appName !== undefined ? { appName: input.appName } : {}),
+        ...(input.supportEmail !== undefined ? { supportEmail: input.supportEmail } : {}),
+        ...(input.maintenanceMode !== undefined ? { maintenanceMode: input.maintenanceMode } : {}),
+        ...(input.allowNewRegistrations !== undefined ? { allowNewRegistrations: input.allowNewRegistrations } : {}),
+        ...(input.bookingLeadTimeHours !== undefined ? { bookingLeadTimeHours: input.bookingLeadTimeHours } : {}),
+        ...(input.maxBookingsPerDay !== undefined ? { maxBookingsPerDay: input.maxBookingsPerDay } : {}),
+        ...(input.notifyOnNewReport !== undefined ? { notifyOnNewReport: input.notifyOnNewReport } : {}),
+        ...(input.notifyOnNewBooking !== undefined ? { notifyOnNewBooking: input.notifyOnNewBooking } : {}),
+        ...(input.featuredArtisanIds !== undefined ? { featuredArtisanIds: input.featuredArtisanIds } : {}),
+      },
+    });
   },
 };

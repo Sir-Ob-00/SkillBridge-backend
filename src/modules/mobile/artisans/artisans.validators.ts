@@ -35,7 +35,6 @@ export const listArtisansQuerySchema = z.object({
   query: z.string().trim().optional(),
   category: z.string().trim().optional(),
   applicationStatus: z.enum([
-    'EMAIL_VERIFICATION_PENDING',
     'PENDING_PROFILE',
     'PENDING_REVIEW',
     'UNDER_REVIEW',

@@ -2,36 +2,19 @@ import { Router } from 'express';
 import { adminVerificationController } from './admin.verification.controller';
 import { requireAuth } from '../../../middlewares/requireAuth';
 import { adminOnly } from '../../../middlewares/adminOnly';
-import { validate } from '../../../middlewares/validate';
-import {
-  listVerificationsQuerySchema,
-  artisanIdParamSchema,
-  reviewNoteSchema,
-} from './admin.verification.validators';
 
 const router = Router();
 
 router.use(requireAuth, adminOnly);
 
-router.get('/', validate(listVerificationsQuerySchema, 'query'), adminVerificationController.list);
-router.get('/:id', validate(artisanIdParamSchema, 'params'), adminVerificationController.getById);
-router.patch(
-  '/:id/approve',
-  validate(artisanIdParamSchema, 'params'),
-  validate(reviewNoteSchema),
-  adminVerificationController.approve
-);
-router.patch(
-  '/:id/reject',
-  validate(artisanIdParamSchema, 'params'),
-  validate(reviewNoteSchema),
-  adminVerificationController.reject
-);
-router.patch(
-  '/:id/request-changes',
-  validate(artisanIdParamSchema, 'params'),
-  validate(reviewNoteSchema),
-  adminVerificationController.requestChanges
-);
+router.get('/', adminVerificationController.list as any);
+router.get('/statistics', adminVerificationController.statistics);
+router.get('/:id', adminVerificationController.getById as any);
+router.get('/:id/documents', adminVerificationController.getDocuments as any);
+router.post('/:id/approve', adminVerificationController.approve as any);
+router.post('/:id/reject', adminVerificationController.reject as any);
+router.post('/:id/request-changes', adminVerificationController.requestChanges as any);
+router.post('/:id/note', adminVerificationController.addNote as any);
+router.patch('/:id/status', adminVerificationController.setStatus as any);
 
 export const adminVerificationsRouter = router;

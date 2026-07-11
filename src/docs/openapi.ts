@@ -27,7 +27,6 @@ const openApiSpec = {
       ApplicationStatus: {
         type: 'string',
         enum: [
-          'EMAIL_VERIFICATION_PENDING',
           'PENDING_PROFILE',
           'PENDING_REVIEW',
           'UNDER_REVIEW',

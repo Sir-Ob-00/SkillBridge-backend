@@ -7,6 +7,8 @@ const router = Router();
 
 router.use(requireAuth, adminOnly);
 
-router.get('/', adminAuditLogsController.list);
+router.get('/', adminAuditLogsController.list as any);
+router.get('/export', adminAuditLogsController.export);
+router.get('/:id', adminAuditLogsController.getById as any);
 
 export const adminAuditLogsRouter = router;

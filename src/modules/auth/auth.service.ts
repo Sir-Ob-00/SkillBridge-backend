@@ -16,7 +16,6 @@ import {
   ForgotPasswordInput,
   ResetPasswordInput,
 } from './auth.validators';
-import { emailService } from '../../utils/email.service';
 
 const PUBLIC_USER_FIELDS = {
   id: true,
@@ -25,7 +24,6 @@ const PUBLIC_USER_FIELDS = {
   role: true,
   phone: true,
   profileImageUrl: true,
-  emailVerified: true,
   isSuspended: true,
   createdAt: true,
 } as const;
@@ -59,20 +57,13 @@ export const authService = {
   async register(input: RegisterInput) {
     const existing = await prisma.user.findUnique({ where: { email: input.email } });
     if (existing) {
-      // Don't permanently block users who never finished email verification.
-      if (existing.emailVerified) {
-        throw ApiError.conflict('An account with this email already exists.');
-      }
-      throw ApiError.conflict(
-        'Account already exists but email is not verified. Please verify your email or request a new OTP.'
-      );
+      throw ApiError.conflict('An account with this email already exists.');
     }
 
     const passwordHash = await hashPassword(input.password);
 
-    // Create the user + profile atomically. OTP generation/email is kept
-    // outside the transaction so we don't hold a DB connection during the
-    // (potentially slow) SMTP call.
+    // Create the user + profile atomically. The account is immediately active;
+    // no email verification step is required.
     const user = await prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
         data: {
@@ -81,7 +72,6 @@ export const authService = {
           password: passwordHash,
           role: input.role,
           phone: input.phone,
-          emailVerified: false,
         },
         select: PUBLIC_USER_FIELDS,
       });
@@ -100,40 +90,8 @@ export const authService = {
       return created;
     });
 
-    try {
-      const otpResult = await emailService.sendVerificationOtp(user);
-      return {
-        user,
-        ...otpResult,
-      };
-    } catch (error) {
-      // Email delivery failed: remove the partially created account (and its
-      // cascaded profile/OTP) so we don't leave an unverifiable, orphaned user.
-      await prisma.user.delete({ where: { id: user.id } }).catch(() => {});
-      if (error instanceof ApiError) throw error;
-      throw ApiError.internal('Unable to send verification email. Please try again.');
-    }
-  },
-
-  async verifyEmail(input: { email: string; otp: string }) {
-    return emailService.verifyEmail(input.email, input.otp);
-  },
-
-  async resendEmailOtp(email: string) {
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      return { message: 'If that email exists, a verification code has been sent.' };
-    }
-
-    if (user.emailVerified) {
-      return { message: 'Email is already verified.' };
-    }
-
-    const otpResult = await emailService.sendVerificationOtp(user);
-
-    return {
-      message: 'Verification OTP sent successfully.',
-    };
+    const tokens = await issueTokens(user.id, user.role);
+    return { user, ...tokens };
   },
 
   async login(input: LoginInput) {
@@ -148,10 +106,6 @@ export const authService = {
 
     if (user.isSuspended) {
       throw ApiError.forbidden('This account has been suspended.');
-    }
-
-    if (!user.emailVerified) {
-      throw ApiError.forbidden('Please verify your email before logging in.', 'EMAIL_NOT_VERIFIED');
     }
 
     const passwordMatches = await comparePassword(input.password, user.password);
