@@ -9,18 +9,18 @@ import { errorHandler, notFoundHandler } from '../middlewares/errorHandler';
 import { createApiRouter } from '../routes';
 import { setupSwagger } from '../docs/swagger';
 
-const allowedOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim());
+const allowedOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean);
 
 const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    if (allowedOrigins.some((pattern) => pattern.startsWith('exp://') && origin.startsWith('exp://'))) {
-      return callback(null, true);
-    }
+    if (origin.startsWith('exp://')) return callback(null, true);
     return callback(new Error('Not allowed by CORS'), false);
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
 export const createApp = (): Express => {
