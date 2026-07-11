@@ -1,8 +1,16 @@
 import { Request, Response, NextFunction } from 'express';
 import { ApiError } from '../utils/ApiError';
 import { prisma } from '../config/prisma';
+import { asyncHandler } from '../utils/asyncHandler';
+import { logger } from '../utils/logger';
 
-export const artisanOnly = async (req: Request, _res: Response, next: NextFunction) => {
+export const artisanOnly = asyncHandler(async (req: Request, _res: Response, next: NextFunction) => {
+  logger.info('[AUTH DEBUG] artisanOnly', {
+    method: req.method,
+    url: req.originalUrl,
+    userId: req.user?.id,
+  });
+
   if (!req.user) {
     throw ApiError.unauthorized();
   }
@@ -17,8 +25,8 @@ export const artisanOnly = async (req: Request, _res: Response, next: NextFuncti
   }
 
   if (user.isSuspended) {
-    throw ApiError.forbidden('Your account has been suspended.');
+    throw ApiError.forbidden('Your artisan account has been suspended.');
   }
 
   next();
-};
+});

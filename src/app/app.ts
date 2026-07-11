@@ -8,15 +8,39 @@ import { apiLimiter } from '../middlewares/rateLimiter';
 import { errorHandler, notFoundHandler } from '../middlewares/errorHandler';
 import { createApiRouter } from '../routes';
 import { setupSwagger } from '../docs/swagger';
+import { logger } from '../utils/logger';
 
-const allowedOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean);
+const rawOrigins = env.CORS_ORIGIN
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+const allowedOrigins = new Set([
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:5174',
+  'http://localhost:5175',
+  ...rawOrigins,
+]);
 
 const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes('*')) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    if (origin.startsWith('exp://')) return callback(null, true);
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.has('*')) {
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.has(origin)) {
+      return callback(null, true);
+    }
+
+    logger.warn('[CORS] Blocked origin', {
+      origin,
+    });
+
     return callback(null, false);
   },
   credentials: true,
@@ -27,7 +51,22 @@ const corsOptions = {
 export const createApp = (): Express => {
   const app = express();
 
-  app.set("trust proxy", 1);
+  app.set('trust proxy', 1);
+
+  app.use(
+    (
+      req: express.Request,
+      _res: express.Response,
+      next: express.NextFunction
+    ): void => {
+      logger.info('[CORS DEBUG] incoming request', {
+        method: req.method,
+        url: req.originalUrl,
+        origin: req.headers.origin || 'no-origin',
+      });
+      next();
+    }
+  );
 
   app.use(helmet());
   app.use(cors(corsOptions));

@@ -1,8 +1,16 @@
 import { Request, Response, NextFunction } from 'express';
 import { ApiError } from '../utils/ApiError';
 import { prisma } from '../config/prisma';
+import { asyncHandler } from '../utils/asyncHandler';
+import { logger } from '../utils/logger';
 
-export const studentOnly = async (req: Request, _res: Response, next: NextFunction) => {
+export const studentOnly = asyncHandler(async (req: Request, _res: Response, next: NextFunction) => {
+  logger.info('[AUTH DEBUG] studentOnly', {
+    method: req.method,
+    url: req.originalUrl,
+    userId: req.user?.id,
+  });
+
   if (!req.user) {
     throw ApiError.unauthorized();
   }
@@ -21,4 +29,4 @@ export const studentOnly = async (req: Request, _res: Response, next: NextFuncti
   }
 
   next();
-};
+});
