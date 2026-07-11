@@ -14,9 +14,10 @@ const allowedOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Bo
 const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     if (!origin) return callback(null, true);
+    if (allowedOrigins.includes('*')) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
     if (origin.startsWith('exp://')) return callback(null, true);
-    return callback(new Error('Not allowed by CORS'), false);
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -30,6 +31,7 @@ export const createApp = (): Express => {
 
   app.use(helmet());
   app.use(cors(corsOptions));
+  app.options('*', cors(corsOptions));
   app.use(express.json({ limit: '2mb' }));
   app.use(express.urlencoded({ extended: true }));
   app.use(morgan(env.isProduction ? 'combined' : 'dev'));
