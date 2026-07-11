@@ -33,7 +33,6 @@ export const createApiRouter = (): Router => {
   apiRouter.use('/chats', chatRouter);
   apiRouter.use('/skills', skillsRouter);
 
-  apiRouter.use('/admin', adminRouter);
   apiRouter.use('/admin/auth', adminRouters.adminAuthRouter);
   apiRouter.use('/admin/profile', adminRouters.adminProfileRouter);
   apiRouter.use('/admin/dashboard', adminRouters.dashboardRouter);
@@ -54,6 +53,7 @@ export const createApiRouter = (): Router => {
   apiRouter.use('/admin/cms', adminRouters.adminCmsRouter);
   apiRouter.use('/admin/uploads', adminRouters.uploadsRouter);
   apiRouter.use('/admin/payments', adminRouters.adminPaymentsRouter);
+  apiRouter.use('/admin', adminRouter);
 
   return apiRouter;
 };

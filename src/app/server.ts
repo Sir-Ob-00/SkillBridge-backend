@@ -21,6 +21,14 @@ const bootstrap = async (): Promise<void> => {
     logger.info(`SkillBridge API listening on port ${env.PORT} (${env.NODE_ENV})`);
   });
 
+  httpServer.on('error', (error: NodeJS.ErrnoException) => {
+    if (error.code === 'EADDRINUSE') {
+      logger.error(`Port ${env.PORT} is already in use. Stop the existing process or use another port.`);
+      process.exit(1);
+    }
+    throw error;
+  });
+
   const shutdown = async (signal: string) => {
     logger.info(`Received ${signal}, shutting down gracefully...`);
     httpServer.close(() => logger.info('HTTP server closed.'));
