@@ -4,9 +4,9 @@
   "private": true,
   "main": "dist/app/server.js",
   "scripts": {
-    "dev": "tsx watch src/app/server.ts",
-    "build": "prisma generate && tsc -p tsconfig.json",
-    "start": "npm run prisma:deploy && node ./dist/app/server.js",
+    "dev": "tsx src/app/server.ts",
+    "build": "tsc",
+    "start": "node dist/app/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
