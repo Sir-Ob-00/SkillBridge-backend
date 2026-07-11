@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/app/server.ts",
     "build": "prisma generate && tsc -p tsconfig.json",
-    "start": "prisma db push --accept-data-loss && node dist/app/server.js",
+    "start": "npm run prisma:deploy && node dist/app/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
