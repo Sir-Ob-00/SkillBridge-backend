@@ -87,6 +87,7 @@ model User {
   messagesSent      Message[]          @relation("SentMessages")
   messagesReceived  Message[]          @relation("ReceivedMessages")
   statusChanges     ArtisanStatusChange[]
+  auditLogs         AuditLog[]         @relation("AuditLogAdmin")
 
   @@index([role])
   @@map("users")
@@ -470,6 +471,7 @@ model AuditLog {
   oldValue   Json?
   newValue   Json?
   createdAt  DateTime  @default(now())
+  admin      User?     @relation("AuditLogAdmin", fields: [adminId], references: [id], onDelete: SetNull)
 
   @@index([adminId])
   @@index([resource])

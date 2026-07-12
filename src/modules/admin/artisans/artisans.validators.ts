@@ -4,6 +4,7 @@ import { ApplicationStatus } from '@prisma/client';
 export const listArtisansQuerySchema = z.object({
   search: z.string().trim().optional(),
   applicationStatus: z.nativeEnum(ApplicationStatus).optional(),
+  status: z.enum(['VERIFIED', 'UNVERIFIED', 'PENDING', 'REJECTED', 'ACTIVE']).optional(),
   isSuspended: z.enum(['true', 'false']).optional(),
   sortBy: z.enum(['businessName', 'rating', 'createdAt', 'reviewCount']).default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),

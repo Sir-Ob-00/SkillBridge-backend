@@ -30,8 +30,36 @@ export const adminArtisansService = {
     const { page, pageSize, skip, take } = parsePagination(query as Record<string, unknown>);
 
     const where: Prisma.ArtisanProfileWhereInput = {};
-    if (query.applicationStatus) where.applicationStatus = query.applicationStatus;
-    if (query.isSuspended) where.isSuspended = query.isSuspended === 'true';
+
+    if (query.status) {
+      switch (query.status) {
+        case 'VERIFIED':
+          where.verification = 'verified';
+          break;
+        case 'UNVERIFIED':
+        case 'PENDING':
+          where.verification = 'unverified';
+          break;
+        case 'REJECTED':
+          where.OR = [
+            { verification: 'rejected' },
+            { applicationStatus: ApplicationStatus.REJECTED },
+          ];
+          break;
+        case 'ACTIVE':
+          where.applicationStatus = ApplicationStatus.ACTIVE;
+          break;
+        default:
+          break;
+      }
+    } else if (query.applicationStatus) {
+      where.applicationStatus = query.applicationStatus;
+    }
+
+    if (query.isSuspended) {
+      where.isSuspended = query.isSuspended === 'true';
+    }
+
     if (query.search) {
       where.OR = [
         { businessName: { contains: query.search, mode: 'insensitive' } },
