@@ -18,6 +18,7 @@ const bootstrap = async (): Promise<void> => {
   initSockets(httpServer);
   const io = getIO();
   logger.info(`Socket.IO mounted: ${io ? 'yes' : 'no'}`);
+  logger.info('Socket.IO path: /socket.io/');
 
   await categoriesService.ensureDefaults();
   await skillsService.ensureDefaults();

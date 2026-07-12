@@ -1,4 +1,4 @@
-import { Server as HttpServer } from 'http';
+import { IncomingMessage, Server as HttpServer, ServerResponse } from 'http';
 import { Server, Socket } from 'socket.io';
 import { env } from '../config/env';
 import { verifyAccessToken } from '../utils/jwt';
@@ -23,18 +23,38 @@ export const initSockets = (httpServer: HttpServer): Server => {
   const allowedOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean);
 
   const io = new Server(httpServer, {
-    transports: ['websocket', 'polling'],
+    path: '/socket.io/',
+    transports: ['polling', 'websocket'],
     pingTimeout: 60000,
     pingInterval: 25000,
     cors: {
       origin: (origin: string | undefined) => {
         if (!origin) return true;
-        if (allowedOrigins.includes(origin)) return true;
-        if (origin.startsWith('exp://')) return true;
+        const normalized = origin.toLowerCase();
+        if (allowedOrigins.some((o) => o.toLowerCase() === normalized)) return true;
+        if (normalized.startsWith('exp://')) return true;
+        logger.warn('[Socket CORS] Blocked origin', { origin });
         return false;
       },
-      methods: ['GET', 'POST'],
+      methods: ['GET', 'POST', 'OPTIONS'],
+      credentials: true,
     },
+    allowRequest: (req, fn) => {
+      logger.info('[allowRequest]', {
+        url: req.url,
+        method: req.method,
+      });
+      fn(null, true);
+    },
+  });
+
+  io.engine.use((req: IncomingMessage, res: ServerResponse, next: (err?: unknown) => void) => {
+    logger.info('ENGINE REQUEST', {
+      url: req.url,
+      method: req.method,
+      origin: req.headers.origin,
+    });
+    next();
   });
 
   io.engine.on('connection', (socket) => {
