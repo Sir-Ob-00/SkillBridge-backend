@@ -40,6 +40,7 @@ export const createApiRouter = (): Router => {
   apiRouter.use('/admin/artisans', adminRouters.adminArtisansRouter);
   apiRouter.use('/admin/verifications', adminRouters.adminVerificationsRouter);
   apiRouter.use('/admin/categories', adminRouters.adminCategoriesRouter);
+  apiRouter.use('/admin/skills', adminRouters.adminSkillsRouter);
   apiRouter.use('/admin/bookings', adminRouters.adminBookingsRouter);
   apiRouter.use('/admin/reviews', adminRouters.adminReviewsRouter);
   apiRouter.use('/admin/reports', adminRouters.adminReportsRouter);

@@ -5,6 +5,7 @@ export { adminStudentsRouter } from './students/students.routes';
 export { adminArtisansRouter } from './artisans/artisans.routes';
 export { adminVerificationsRouter } from './verification/admin.verification.routes';
 export { adminCategoriesRouter } from './categories/admin.categories.routes';
+export { adminSkillsRouter } from './skills/admin.skills.routes';
 export { adminBookingsRouter } from './bookings/admin.bookings.routes';
 export { adminReviewsRouter } from './reviews/admin.reviews.routes';
 export { adminReportsRouter } from './reports/admin.reports.routes';
