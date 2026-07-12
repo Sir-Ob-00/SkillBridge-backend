@@ -23,6 +23,9 @@ export const initSockets = (httpServer: HttpServer): Server => {
   const allowedOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean);
 
   const io = new Server(httpServer, {
+    transports: ['websocket', 'polling'],
+    pingTimeout: 60000,
+    pingInterval: 25000,
     cors: {
       origin: (origin: string | undefined) => {
         if (!origin) return true;
@@ -32,6 +35,10 @@ export const initSockets = (httpServer: HttpServer): Server => {
       },
       methods: ['GET', 'POST'],
     },
+  });
+
+  io.on('connect_error', (err: Error) => {
+    logger.error('Socket connect_error', { message: err.message });
   });
 
   // ── Authenticated handshake ─────────────────────────────────────────
@@ -54,13 +61,13 @@ export const initSockets = (httpServer: HttpServer): Server => {
   });
 
   io.on('connection', (socket: Socket) => {
+    logger.info(`Socket connected: id=${socket.id} origin=${socket.handshake.headers.origin ?? 'none'}`);
+
     const user = socket.user;
     if (!user) {
       socket.disconnect(true);
       return;
     }
-
-    logger.info(`Socket connected: user=${user.id} role=${user.role} socket=${socket.id}`);
 
     // Every user gets a personal room for direct notifications
     // (bookings, verification updates, etc.)
