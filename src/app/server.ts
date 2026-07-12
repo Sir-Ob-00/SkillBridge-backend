@@ -1,6 +1,7 @@
 import http from 'http';
 import { createApp } from './app';
 import { initSockets } from '../sockets';
+import { getIO } from '../sockets/io';
 import { env } from '../config/env';
 import { prisma } from '../config/prisma';
 import { logger } from '../utils/logger';
@@ -9,16 +10,20 @@ import { skillsService } from '../modules/skills/skills.service';
 
 const bootstrap = async (): Promise<void> => {
   const app = createApp();
+  logger.info('HTTP server created');
+
   const httpServer = http.createServer(app);
+  logger.info('Express mounted on HTTP server');
 
   initSockets(httpServer);
+  const io = getIO();
+  logger.info(`Socket.IO mounted: ${io ? 'yes' : 'no'}`);
 
-  // Seed default categories and skills on first run.
   await categoriesService.ensureDefaults();
   await skillsService.ensureDefaults();
 
   httpServer.listen(env.PORT, '0.0.0.0', () => {
-    logger.info(`SkillBridge API listening on port ${env.PORT} (${env.NODE_ENV})`);
+    logger.info(`Server listening on port ${env.PORT} (${env.NODE_ENV})`);
   });
 
   httpServer.on('error', (error: NodeJS.ErrnoException) => {

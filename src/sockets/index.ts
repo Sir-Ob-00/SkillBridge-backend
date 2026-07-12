@@ -37,6 +37,10 @@ export const initSockets = (httpServer: HttpServer): Server => {
     },
   });
 
+  io.engine.on('connection', (socket) => {
+    logger.info(`ENGINE CONNECTION socket=${socket.id}`);
+  });
+
   io.on('connect_error', (err: Error) => {
     logger.error('Socket connect_error', { message: err.message });
   });

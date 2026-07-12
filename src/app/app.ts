@@ -9,6 +9,7 @@ import { errorHandler, notFoundHandler } from '../middlewares/errorHandler';
 import { createApiRouter } from '../routes';
 import { setupSwagger } from '../docs/swagger';
 import { logger } from '../utils/logger';
+import { getIO } from '../sockets/io';
 
 const rawOrigins = env.CORS_ORIGIN
   .split(',')
@@ -79,6 +80,15 @@ export const createApp = (): Express => {
 
   app.get('/health', (_req, res) => {
     res.json({ success: true, message: 'SkillBridge API is running.', timestamp: new Date().toISOString() });
+  });
+
+  app.get('/socket-health', (_req, res) => {
+    const io = getIO();
+    res.json({
+      ok: true,
+      socketMounted: !!io,
+      clients: io?.engine?.clientsCount ?? 0,
+    });
   });
 
   app.use('/api/v1', createApiRouter());
