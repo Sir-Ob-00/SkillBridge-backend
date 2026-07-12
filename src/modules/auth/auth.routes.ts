@@ -9,6 +9,7 @@ import {
   logoutSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  passwordStrengthSchema,
 } from './auth.validators';
 
 const router = Router();
@@ -29,5 +30,6 @@ router.post(
   validate(resetPasswordSchema),
   authController.resetPassword
 );
+router.post('/password-strength', validate(passwordStrengthSchema), authController.checkPasswordStrength);
 
 export const authRouter = router;

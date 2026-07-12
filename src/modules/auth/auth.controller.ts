@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/apiResponse';
 import { authService } from './auth.service';
+import { assessPasswordStrength } from '../../utils/validators';
 import {
   RegisterInput,
   LoginInput,
@@ -9,6 +10,7 @@ import {
   LogoutInput,
   ForgotPasswordInput,
   ResetPasswordInput,
+  PasswordStrengthInput,
 } from './auth.validators';
 
 export const authController = {
@@ -43,6 +45,13 @@ export const authController = {
     async (req: Request<unknown, unknown, ResetPasswordInput>, res: Response) => {
       const result = await authService.resetPassword(req.body);
       return sendSuccess(res, result, result.message);
+    }
+  ),
+
+  checkPasswordStrength: asyncHandler(
+    async (req: Request<unknown, unknown, PasswordStrengthInput>, res: Response) => {
+      const result = assessPasswordStrength(req.body.password);
+      return sendSuccess(res, result);
     }
   ),
 };

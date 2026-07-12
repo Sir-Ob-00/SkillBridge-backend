@@ -1,10 +1,11 @@
 import { z } from 'zod';
 import { Role } from '@prisma/client';
+import { strongPasswordSchema, phoneSchema } from '../../../utils/validators';
 
 export const adminUpdateUserSchema = z.object({
   name: z.string().trim().min(2).max(120).optional(),
   email: z.string().trim().toLowerCase().email('Invalid email address').optional(),
-  phone: z.string().trim().min(7).max(20).optional(),
+  phone: phoneSchema.optional(),
   role: z.nativeEnum(Role).optional(),
   isSuspended: z.boolean().optional(),
   avatarUrl: z.string().url().optional(),
@@ -20,8 +21,8 @@ export const listAdminUsersQuerySchema = z.object({
 export const createAdminSchema = z.object({
   name: z.string().trim().min(2, 'Name is required'),
   email: z.string().trim().toLowerCase().email('Invalid email'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  phone: z.string().trim().min(7).max(20).optional(),
+  password: strongPasswordSchema,
+  phone: phoneSchema.optional(),
   role: z.enum(['admin', 'super_admin']).default('admin'),
 });
 

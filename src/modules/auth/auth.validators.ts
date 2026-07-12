@@ -1,12 +1,13 @@
 import { z } from 'zod';
 import { Role } from '@prisma/client';
+import { strongPasswordSchema, phoneSchema } from '../../utils/validators';
 
 export const registerSchema = z.object({
   name: z.string().trim().min(2, 'Name must be at least 2 characters'),
   email: z.string().trim().toLowerCase().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: strongPasswordSchema,
   role: z.nativeEnum(Role).default(Role.student),
-  phone: z.string().trim().min(7).max(20).optional(),
+  phone: phoneSchema.optional(),
 }).superRefine((data, ctx) => {
   if (data.role === Role.artisan && !data.phone) {
     ctx.addIssue({
@@ -36,7 +37,11 @@ export const forgotPasswordSchema = z.object({
 
 export const resetPasswordSchema = z.object({
   token: z.string().min(1, 'Reset token is required'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: strongPasswordSchema,
+});
+
+export const passwordStrengthSchema = z.object({
+  password: z.string(),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -45,3 +50,4 @@ export type RefreshInput = z.infer<typeof refreshSchema>;
 export type LogoutInput = z.infer<typeof logoutSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type PasswordStrengthInput = z.infer<typeof passwordStrengthSchema>;

@@ -1,9 +1,10 @@
 import { z } from 'zod';
 import { Role } from '@prisma/client';
+import { phoneSchema } from '../../utils/validators';
 
 export const updateProfileSchema = z.object({
   name: z.string().trim().min(2).optional(),
-  phone: z.string().trim().min(7).max(20).optional(),
+  phone: phoneSchema.optional(),
   profileImageUrl: z.string().url().optional(),
 });
 

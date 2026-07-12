@@ -1,8 +1,9 @@
 import { z } from 'zod';
 import { ApplicationStatus, DayOfWeek } from '@prisma/client';
+import { phoneSchema } from '../../../utils/validators';
 
 export const personalSchema = z.object({
-  phone: z.string().trim().min(7).max(20).optional(),
+  phone: phoneSchema.optional().nullable(),
   profileImageUrl: z.string().trim().url().optional().nullable(),
 });
 
