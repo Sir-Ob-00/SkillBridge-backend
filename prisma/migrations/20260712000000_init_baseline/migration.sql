@@ -1,5 +1,14 @@
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
+
 -- CreateEnum
 CREATE TYPE "Role" AS ENUM ('student', 'artisan', 'admin', 'super_admin');
+
+-- CreateEnum
+CREATE TYPE "ApplicationStatus" AS ENUM ('PENDING_PROFILE', 'PENDING_REVIEW', 'UNDER_REVIEW', 'CHANGES_REQUESTED', 'ACTIVE', 'REJECTED');
+
+-- CreateEnum
+CREATE TYPE "VerificationReviewStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'CHANGES_REQUESTED');
 
 -- CreateEnum
 CREATE TYPE "BookingStatus" AS ENUM ('pending', 'accepted', 'in_progress', 'completed', 'cancelled', 'rejected');
@@ -8,13 +17,7 @@ CREATE TYPE "BookingStatus" AS ENUM ('pending', 'accepted', 'in_progress', 'comp
 CREATE TYPE "ReportStatus" AS ENUM ('open', 'resolved', 'escalated');
 
 -- CreateEnum
-CREATE TYPE "ApplicationStatus" AS ENUM ('EMAIL_VERIFICATION_PENDING', 'PENDING_PROFILE', 'PENDING_REVIEW', 'UNDER_REVIEW', 'CHANGES_REQUESTED', 'ACTIVE', 'REJECTED');
-
--- CreateEnum
 CREATE TYPE "DayOfWeek" AS ENUM ('MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY');
-
--- CreateEnum
-CREATE TYPE "VerificationReviewStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'REVISION_REQUESTED');
 
 -- CreateTable
 CREATE TABLE "users" (
@@ -24,8 +27,7 @@ CREATE TABLE "users" (
     "password" TEXT NOT NULL,
     "role" "Role" NOT NULL DEFAULT 'student',
     "phone" TEXT,
-    "avatarUrl" TEXT,
-    "emailVerified" BOOLEAN NOT NULL DEFAULT false,
+    "profileImageUrl" TEXT,
     "isSuspended" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -55,18 +57,6 @@ CREATE TABLE "password_reset_tokens" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "password_reset_tokens_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "email_verification_otps" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "otp" TEXT NOT NULL,
-    "expiresAt" TIMESTAMP(3) NOT NULL,
-    "verifiedAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "email_verification_otps_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -137,10 +127,21 @@ CREATE TABLE "artisan_availability" (
 CREATE TABLE "artisan_skills" (
     "id" TEXT NOT NULL,
     "artisanProfileId" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
+    "skillId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "artisan_skills_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "skills" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "categoryId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "skills_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -161,7 +162,7 @@ CREATE TABLE "artisan_services" (
     "description" TEXT NOT NULL,
     "price" DECIMAL(10,2) NOT NULL,
     "durationMinutes" INTEGER NOT NULL,
-    "categoryName" TEXT NOT NULL,
+    "categoryId" TEXT NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -204,6 +205,17 @@ CREATE TABLE "saved_artisans" (
 );
 
 -- CreateTable
+CREATE TABLE "categories" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "categories_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "bookings" (
     "id" TEXT NOT NULL,
     "studentId" TEXT NOT NULL,
@@ -234,17 +246,6 @@ CREATE TABLE "reviews" (
 );
 
 -- CreateTable
-CREATE TABLE "categories" (
-    "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "active" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "categories_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "reports" (
     "id" TEXT NOT NULL,
     "reporterId" TEXT NOT NULL,
@@ -252,6 +253,9 @@ CREATE TABLE "reports" (
     "reason" TEXT NOT NULL,
     "details" TEXT,
     "status" "ReportStatus" NOT NULL DEFAULT 'open',
+    "assignedTo" TEXT,
+    "resolution" TEXT,
+    "closedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -271,6 +275,54 @@ CREATE TABLE "messages" (
     CONSTRAINT "messages_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "notifications" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "message" TEXT NOT NULL,
+    "type" TEXT NOT NULL DEFAULT 'info',
+    "targetUserId" TEXT,
+    "targetRole" "Role",
+    "read" BOOLEAN NOT NULL DEFAULT false,
+    "createdBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "notifications_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "audit_logs" (
+    "id" TEXT NOT NULL,
+    "adminId" TEXT,
+    "action" TEXT NOT NULL,
+    "resource" TEXT NOT NULL,
+    "resourceId" TEXT,
+    "ipAddress" TEXT,
+    "oldValue" JSONB,
+    "newValue" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "audit_logs_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "system_settings" (
+    "id" TEXT NOT NULL DEFAULT 'singleton',
+    "appName" TEXT NOT NULL DEFAULT 'SkillBridge',
+    "supportEmail" TEXT NOT NULL DEFAULT 'support@skillbridge.dev',
+    "maintenanceMode" BOOLEAN NOT NULL DEFAULT false,
+    "allowNewRegistrations" BOOLEAN NOT NULL DEFAULT true,
+    "bookingLeadTimeHours" INTEGER NOT NULL DEFAULT 24,
+    "maxBookingsPerDay" INTEGER NOT NULL DEFAULT 5,
+    "notifyOnNewReport" BOOLEAN NOT NULL DEFAULT true,
+    "notifyOnNewBooking" BOOLEAN NOT NULL DEFAULT true,
+    "featuredArtisanIds" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "system_settings_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
@@ -288,12 +340,6 @@ CREATE UNIQUE INDEX "password_reset_tokens_token_key" ON "password_reset_tokens"
 
 -- CreateIndex
 CREATE INDEX "password_reset_tokens_userId_idx" ON "password_reset_tokens"("userId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "email_verification_otps_userId_key" ON "email_verification_otps"("userId");
-
--- CreateIndex
-CREATE INDEX "email_verification_otps_userId_idx" ON "email_verification_otps"("userId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "artisan_profiles_userId_key" ON "artisan_profiles"("userId");
@@ -329,6 +375,15 @@ CREATE UNIQUE INDEX "artisan_availability_artisanProfileId_day_key" ON "artisan_
 CREATE INDEX "artisan_skills_artisanProfileId_idx" ON "artisan_skills"("artisanProfileId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "artisan_skills_artisanProfileId_skillId_key" ON "artisan_skills"("artisanProfileId", "skillId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "skills_name_key" ON "skills"("name");
+
+-- CreateIndex
+CREATE INDEX "skills_categoryId_idx" ON "skills"("categoryId");
+
+-- CreateIndex
 CREATE INDEX "artisan_categories_artisanProfileId_idx" ON "artisan_categories"("artisanProfileId");
 
 -- CreateIndex
@@ -336,6 +391,9 @@ CREATE UNIQUE INDEX "artisan_categories_artisanProfileId_categoryId_key" ON "art
 
 -- CreateIndex
 CREATE INDEX "artisan_services_artisanProfileId_idx" ON "artisan_services"("artisanProfileId");
+
+-- CreateIndex
+CREATE INDEX "artisan_services_categoryId_idx" ON "artisan_services"("categoryId");
 
 -- CreateIndex
 CREATE INDEX "application_status_history_artisanProfileId_idx" ON "application_status_history"("artisanProfileId");
@@ -356,6 +414,9 @@ CREATE INDEX "saved_artisans_artisanId_idx" ON "saved_artisans"("artisanId");
 CREATE UNIQUE INDEX "saved_artisans_studentId_artisanId_key" ON "saved_artisans"("studentId", "artisanId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "categories_name_key" ON "categories"("name");
+
+-- CreateIndex
 CREATE INDEX "bookings_studentId_idx" ON "bookings"("studentId");
 
 -- CreateIndex
@@ -374,9 +435,6 @@ CREATE INDEX "reviews_artisanId_idx" ON "reviews"("artisanId");
 CREATE INDEX "reviews_studentId_idx" ON "reviews"("studentId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "categories_name_key" ON "categories"("name");
-
--- CreateIndex
 CREATE INDEX "reports_status_idx" ON "reports"("status");
 
 -- CreateIndex
@@ -391,14 +449,26 @@ CREATE INDEX "messages_senderId_idx" ON "messages"("senderId");
 -- CreateIndex
 CREATE INDEX "messages_receiverId_idx" ON "messages"("receiverId");
 
+-- CreateIndex
+CREATE INDEX "notifications_targetUserId_idx" ON "notifications"("targetUserId");
+
+-- CreateIndex
+CREATE INDEX "notifications_targetRole_idx" ON "notifications"("targetRole");
+
+-- CreateIndex
+CREATE INDEX "audit_logs_adminId_idx" ON "audit_logs"("adminId");
+
+-- CreateIndex
+CREATE INDEX "audit_logs_resource_idx" ON "audit_logs"("resource");
+
+-- CreateIndex
+CREATE INDEX "audit_logs_createdAt_idx" ON "audit_logs"("createdAt");
+
 -- AddForeignKey
 ALTER TABLE "refresh_tokens" ADD CONSTRAINT "refresh_tokens_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "password_reset_tokens" ADD CONSTRAINT "password_reset_tokens_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "email_verification_otps" ADD CONSTRAINT "email_verification_otps_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "artisan_profiles" ADD CONSTRAINT "artisan_profiles_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -422,6 +492,12 @@ ALTER TABLE "artisan_availability" ADD CONSTRAINT "artisan_availability_artisanP
 ALTER TABLE "artisan_skills" ADD CONSTRAINT "artisan_skills_artisanProfileId_fkey" FOREIGN KEY ("artisanProfileId") REFERENCES "artisan_profiles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "artisan_skills" ADD CONSTRAINT "artisan_skills_skillId_fkey" FOREIGN KEY ("skillId") REFERENCES "skills"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "skills" ADD CONSTRAINT "skills_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "categories"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "artisan_categories" ADD CONSTRAINT "artisan_categories_artisanProfileId_fkey" FOREIGN KEY ("artisanProfileId") REFERENCES "artisan_profiles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -429,6 +505,9 @@ ALTER TABLE "artisan_categories" ADD CONSTRAINT "artisan_categories_categoryId_f
 
 -- AddForeignKey
 ALTER TABLE "artisan_services" ADD CONSTRAINT "artisan_services_artisanProfileId_fkey" FOREIGN KEY ("artisanProfileId") REFERENCES "artisan_profiles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "artisan_services" ADD CONSTRAINT "artisan_services_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "categories"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "application_status_history" ADD CONSTRAINT "application_status_history_artisanProfileId_fkey" FOREIGN KEY ("artisanProfileId") REFERENCES "artisan_profiles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -471,3 +550,6 @@ ALTER TABLE "messages" ADD CONSTRAINT "messages_senderId_fkey" FOREIGN KEY ("sen
 
 -- AddForeignKey
 ALTER TABLE "messages" ADD CONSTRAINT "messages_receiverId_fkey" FOREIGN KEY ("receiverId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_adminId_fkey" FOREIGN KEY ("adminId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;

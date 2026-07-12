@@ -79,8 +79,8 @@ async function main() {
 
     for (const name of group.skills) {
       const skill = await prisma.skill.upsert({
-        where: { name },
-        update: { categoryId: category.id, active: true },
+        where: { skill_name_categoryId_key: { name, categoryId: category.id } },
+        update: { active: true },
         create: { name, categoryId: category.id },
       });
       skillMap.set(name, skill.id);

@@ -229,8 +229,8 @@ export const skillsService = {
 
       for (const name of group.skills) {
         await prisma.skill.upsert({
-          where: { name },
-          update: { categoryId: category.id, active: true },
+          where: { skill_name_categoryId_key: { name, categoryId: category.id } },
+          update: { active: true },
           create: { name, categoryId: category.id },
         });
       }
