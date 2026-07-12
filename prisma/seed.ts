@@ -1,7 +1,7 @@
 import { Role, ApplicationStatus, VerificationReviewStatus } from '@prisma/client';
 import { prisma } from '../src/config/prisma';
 import { hashPassword } from '../src/utils/password';
-import { DEFAULT_CATEGORIES } from '../src/modules/categories/categories.service';
+import { DEFAULT_CATEGORIES, DEFAULT_SKILLS_BY_CATEGORY } from '../src/modules/skills/skills.service';
 
 async function main() {
   console.log('Seeding categories...');
@@ -71,30 +71,34 @@ async function main() {
     },
   });
 
-  await prisma.skill.createMany({
-    data: [
-      { name: 'Haircuts' },
-      { name: 'Beard trimming' },
-      { name: 'Hair styling' },
-    ],
-    skipDuplicates: true,
-  });
+  console.log('Seeding master skills by category...');
+  const skillMap = new Map<string, string>();
+  for (const group of DEFAULT_SKILLS_BY_CATEGORY) {
+    const category = await prisma.category.findUnique({ where: { name: group.category } });
+    if (!category) continue;
 
-  const skillRecords = await prisma.skill.findMany({
-    where: { name: { in: ['Haircuts', 'Beard trimming', 'Hair styling'] } },
-  });
+    for (const name of group.skills) {
+      const skill = await prisma.skill.upsert({
+        where: { name },
+        update: { categoryId: category.id, active: true },
+        create: { name, categoryId: category.id },
+      });
+      skillMap.set(name, skill.id);
+    }
+  }
 
-  const skillMap = new Map(skillRecords.map((s) => [s.name, s.id]));
-
+  const demoSkillNames = ['Hair Cutting', 'Beard Grooming', 'Bridal Hair Styling'];
   await prisma.artisanSkill.createMany({
-    data: ['Haircuts', 'Beard trimming', 'Hair styling'].map((name) => ({
-      artisanProfileId: artisanProfile.id,
-      skillId: skillMap.get(name)!,
-    })),
+    data: demoSkillNames
+      .filter((name) => skillMap.has(name))
+      .map((name) => ({
+        artisanProfileId: artisanProfile.id,
+        skillId: skillMap.get(name)!,
+      })),
     skipDuplicates: true,
   });
 
-  const barberingCategory = await prisma.category.findFirst({ where: { name: 'Barbering' } });
+  const barberingCategory = await prisma.category.findFirst({ where: { name: 'Hair Stylist / Barber' } });
   if (barberingCategory) {
     await prisma.artisanCategory.createMany({
       data: [{ artisanProfileId: artisanProfile.id, categoryId: barberingCategory.id }],
@@ -138,7 +142,7 @@ async function main() {
       description: 'A clean, classic haircut tailored to your style.',
       price: 25,
       durationMinutes: 30,
-      categoryId: (await prisma.category.findFirst({ where: { name: 'Barbering' } }))!.id,
+      categoryId: (await prisma.category.findFirst({ where: { name: 'Hair Stylist / Barber' } }))!.id,
     },
   });
 
