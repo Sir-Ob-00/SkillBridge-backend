@@ -60,10 +60,16 @@ export const createApp = (): Express => {
       _res: express.Response,
       next: express.NextFunction
     ): void => {
+      const auth = req.headers.authorization;
       logger.info('[CORS DEBUG] incoming request', {
         method: req.method,
         url: req.originalUrl,
         origin: req.headers.origin || 'no-origin',
+        ip: req.ip,
+        xForwardedFor: req.headers['x-forwarded-for'] || 'none',
+        authorizationPresent: !!auth,
+        authorizationPrefix: auth ? (auth.startsWith('Bearer ') ? 'Bearer' : auth.split(' ')[0] || 'none') : 'none',
+        headerCount: Object.keys(req.headers).length,
       });
       next();
     }
