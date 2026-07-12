@@ -28,13 +28,13 @@ export const initSockets = (httpServer: HttpServer): Server => {
     pingTimeout: 60000,
     pingInterval: 25000,
     cors: {
-      origin: (origin: string | undefined) => {
-        if (!origin) return true;
+      origin: (origin: string | undefined, callback: (err: Error | null, allow: boolean) => void) => {
+        if (!origin) return callback(null, true);
         const normalized = origin.toLowerCase();
-        if (allowedOrigins.some((o) => o.toLowerCase() === normalized)) return true;
-        if (normalized.startsWith('exp://')) return true;
+        if (allowedOrigins.some((o) => o.toLowerCase() === normalized)) return callback(null, true);
+        if (normalized.startsWith('exp://')) return callback(null, true);
         logger.warn('[Socket CORS] Blocked origin', { origin });
-        return false;
+        return callback(null, false);
       },
       methods: ['GET', 'POST', 'OPTIONS'],
       credentials: true,

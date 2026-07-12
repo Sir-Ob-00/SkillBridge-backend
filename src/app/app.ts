@@ -91,20 +91,6 @@ export const createApp = (): Express => {
     });
   });
 
-  app.get('/socket-test', (_req, res) => {
-    res.json({
-      ok: true,
-      message: 'Express receives normal requests',
-    });
-  });
-
-  app.get('/socket-test/*', (req, res) => {
-    res.json({
-      ok: true,
-      path: req.originalUrl,
-    });
-  });
-
   app.use('/api/v1', createApiRouter());
 
   setupSwagger(app);
