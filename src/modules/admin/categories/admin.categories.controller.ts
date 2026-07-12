@@ -3,7 +3,6 @@ import { asyncHandler } from '../../../utils/asyncHandler';
 import { sendSuccess } from '../../../utils/apiResponse';
 import { adminCategoriesService } from './admin.categories.service';
 import {
-  listCategoriesQuerySchema,
   createCategorySchema,
   updateCategorySchema,
   categoryIdParamSchema,
@@ -13,13 +12,10 @@ import { validate } from '../../../middlewares/validate';
 import { recordAudit, getClientIp } from '../../../utils/audit';
 
 export const adminCategoriesController = {
-  list: [
-    validate(listCategoriesQuerySchema, 'query'),
-    asyncHandler(async (req: Request, res: Response) => {
-      const categories = await adminCategoriesService.list(req.query as any);
-      return sendSuccess(res, categories);
-    }),
-  ],
+  list: asyncHandler(async (req: Request, res: Response) => {
+    const categories = await adminCategoriesService.list(req.query as any);
+    return sendSuccess(res, categories);
+  }),
 
   statistics: asyncHandler(async (_req: Request, res: Response) => {
     const stats = await adminCategoriesService.statistics();
@@ -76,7 +72,7 @@ export const adminCategoriesController = {
     validate(categoryIdParamSchema, 'params'),
     asyncHandler(async (req: Request, res: Response) => {
       const result = await adminCategoriesService.remove(req.params.id);
-      await recordAudit({ adminId: req.user?.id, action: 'DELETE', resource: 'category', resourceId: req.params.id, ipAddress: getClientIp(req) });
+      await recordAudit({ adminId: req.user?.id, action: 'DELETE', resource: 'category', ipAddress: getClientIp(req) });
       return sendSuccess(res, null, result.message);
     }),
   ],
