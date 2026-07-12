@@ -12,6 +12,7 @@ import {
   verificationSchema,
   submitSchema,
   categoriesSchema,
+  onboardingDraftSchema,
 } from './onboarding.validators';
 
 type RequestBody<T> = Request<unknown, unknown, T>;
@@ -88,5 +89,17 @@ export const onboardingController = {
   getHistory: asyncHandler(async (req: Request, res: Response) => {
     const history = await onboardingService.getHistory(req.user!.id);
     return sendSuccess(res, history);
+  }),
+
+  saveDraft: asyncHandler(
+    async (req: RequestBody<typeof onboardingDraftSchema._type>, res: Response) => {
+      const result = await onboardingService.saveDraft(req.user!.id, req.body);
+      return sendSuccess(res, result, 'Draft saved.');
+    }
+  ),
+
+  getDraft: asyncHandler(async (req: Request, res: Response) => {
+    const draft = await onboardingService.loadDraft(req.user!.id);
+    return sendSuccess(res, draft);
   }),
 };

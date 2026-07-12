@@ -13,6 +13,7 @@ import {
   verificationSchema,
   submitSchema,
   categoriesSchema,
+  onboardingDraftSchema,
 } from './onboarding.validators';
 
 const router = Router();
@@ -33,5 +34,8 @@ router.patch('/categories', validate(categoriesSchema), onboardingController.upd
 
 router.post('/submit', validate(submitSchema), onboardingController.submitApplication);
 router.get('/history', onboardingController.getHistory);
+
+router.get('/draft', onboardingController.getDraft);
+router.put('/draft', validate(onboardingDraftSchema), onboardingController.saveDraft);
 
 export const onboardingRouter = router;

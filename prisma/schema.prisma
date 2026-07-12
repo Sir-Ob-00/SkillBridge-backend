@@ -147,6 +147,7 @@ model ArtisanProfile {
   updatedAt DateTime @updatedAt
 
   verification String? @default("unverified")
+  onboardingDraft Json?
 
   user            User                @relation("ArtisanOwner", fields: [userId], references: [id], onDelete: Cascade)
   reviewedByAdmin  User?               @relation("ArtisanReviewer", fields: [reviewedByAdminId], references: [id])

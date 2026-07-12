@@ -13,6 +13,7 @@ import {
   VerificationInput,
   SubmitInput,
   CategoriesInput,
+  OnboardingDraftInput,
 } from './onboarding.validators';
 
 interface OnboardingStatusOutput {
@@ -409,5 +410,36 @@ export const onboardingService = {
       notes: item.notes,
       createdAt: item.createdAt.toISOString(),
     }));
+  },
+
+  async saveDraft(userId: string, input: OnboardingDraftInput) {
+    const profile = await prisma.artisanProfile.findUnique({ where: { userId } });
+    if (!profile) {
+      throw ApiError.notFound('Artisan profile not found.');
+    }
+
+    await prisma.artisanProfile.update({
+      where: { id: profile.id },
+      data: { onboardingDraft: input },
+    });
+
+    return { success: true };
+  },
+
+  async loadDraft(userId: string) {
+    const profile = await prisma.artisanProfile.findUnique({
+      where: { userId },
+      select: { onboardingDraft: true },
+    });
+
+    if (!profile) {
+      throw ApiError.notFound('Artisan profile not found.');
+    }
+
+    if (!profile.onboardingDraft) {
+      return null;
+    }
+
+    return profile.onboardingDraft as OnboardingDraftInput;
   },
 };
