@@ -10,6 +10,7 @@ export const updateCategorySchema = z.object({
 });
 
 export const listCategoriesQuerySchema = z.object({
+  search: z.string().trim().min(1).max(60).optional(),
   activeOnly: z
     .union([z.literal('true'), z.literal('false')])
     .optional()

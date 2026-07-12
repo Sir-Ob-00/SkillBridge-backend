@@ -1,4 +1,5 @@
 import { prisma } from '../../config/prisma';
+import { Prisma } from '@prisma/client';
 import { ApiError } from '../../utils/ApiError';
 import {
   CreateCategoryInput,
@@ -9,8 +10,14 @@ import { DEFAULT_CATEGORIES, skillsService } from '../skills/skills.service';
 
 export const categoriesService = {
   async list(query: ListCategoriesQuery) {
+    const where: Prisma.CategoryWhereInput = {};
+    if (query.activeOnly) where.active = true;
+    if (query.search) {
+      where.name = { contains: query.search, mode: 'insensitive' };
+    }
+
     return prisma.category.findMany({
-      where: query.activeOnly ? { active: true } : {},
+      where,
       orderBy: { name: 'asc' },
     });
   },
