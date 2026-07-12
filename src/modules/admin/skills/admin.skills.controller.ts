@@ -3,7 +3,6 @@ import { asyncHandler } from '../../../utils/asyncHandler';
 import { sendSuccess } from '../../../utils/apiResponse';
 import { adminSkillsService } from './admin.skills.service';
 import {
-  listSkillsQuerySchema,
   createSkillSchema,
   updateSkillSchema,
   skillIdParamSchema,
@@ -12,13 +11,10 @@ import { validate } from '../../../middlewares/validate';
 import { recordAudit, getClientIp } from '../../../utils/audit';
 
 export const adminSkillsController = {
-  list: [
-    validate(listSkillsQuerySchema, 'query'),
-    asyncHandler(async (req: Request, res: Response) => {
-      const skills = await adminSkillsService.list(req.query as any);
-      return sendSuccess(res, skills);
-    }),
-  ],
+  list: asyncHandler(async (req: Request, res: Response) => {
+    const skills = await adminSkillsService.list(req.query as any);
+    return sendSuccess(res, skills);
+  }),
 
   getById: [
     validate(skillIdParamSchema, 'params'),
