@@ -39,27 +39,22 @@ export const initSockets = (httpServer: HttpServer): Server => {
       methods: ['GET', 'POST', 'OPTIONS'],
       credentials: true,
     },
-    allowRequest: (req, fn) => {
-      logger.info('[allowRequest]', {
+  });
+
+  if (!env.isProduction) {
+    io.engine.use((req: IncomingMessage, _res: ServerResponse, next: (err?: unknown) => void) => {
+      logger.info('ENGINE REQUEST', {
         url: req.url,
         method: req.method,
+        origin: req.headers.origin,
       });
-      fn(null, true);
-    },
-  });
-
-  io.engine.use((req: IncomingMessage, res: ServerResponse, next: (err?: unknown) => void) => {
-    logger.info('ENGINE REQUEST', {
-      url: req.url,
-      method: req.method,
-      origin: req.headers.origin,
+      next();
     });
-    next();
-  });
 
-  io.engine.on('connection', (socket) => {
-    logger.info(`ENGINE CONNECTION socket=${socket.id}`);
-  });
+    io.engine.on('connection', (socket) => {
+      logger.info(`ENGINE CONNECTION socket=${socket.id}`);
+    });
+  }
 
   io.on('connect_error', (err: Error) => {
     logger.error('Socket connect_error', { message: err.message });
@@ -72,6 +67,7 @@ export const initSockets = (httpServer: HttpServer): Server => {
       (socket.handshake.headers.authorization?.replace('Bearer ', '') as string | undefined);
 
     if (!token) {
+      logger.warn('Socket auth failed: missing token', { socketId: socket.id });
       return next(new Error('Authentication required.'));
     }
 
@@ -79,19 +75,25 @@ export const initSockets = (httpServer: HttpServer): Server => {
       const payload = verifyAccessToken(token);
       socket.user = { id: payload.sub, role: payload.role };
       next();
-    } catch {
-      next(new Error('Invalid or expired token.'));
+    } catch (err) {
+      if ((err as { name?: string })?.name === 'TokenExpiredError') {
+        logger.warn('Socket auth failed: expired token', { socketId: socket.id });
+        return next(new Error('Token expired.'));
+      }
+      logger.warn('Socket auth failed: invalid token', { socketId: socket.id });
+      next(new Error('Invalid token.'));
     }
   });
 
   io.on('connection', (socket: Socket) => {
-    logger.info(`Socket connected: id=${socket.id} origin=${socket.handshake.headers.origin ?? 'none'}`);
-
     const user = socket.user;
     if (!user) {
+      logger.warn('Socket connected without user, disconnecting', { socketId: socket.id });
       socket.disconnect(true);
       return;
     }
+
+    logger.info(`Socket connected: user=${user.id} role=${user.role} socket=${socket.id}`);
 
     // Every user gets a personal room for direct notifications
     // (bookings, verification updates, etc.)
