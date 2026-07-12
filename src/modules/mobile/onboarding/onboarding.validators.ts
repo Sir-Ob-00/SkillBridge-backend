@@ -14,7 +14,7 @@ export const businessSchema = z.object({
 });
 
 export const skillsSchema = z.object({
-  skillIds: z.array(z.string().uuid()).min(1, 'At least one skill is required').max(20),
+  skillIds: z.array(z.string().uuid()).min(1, 'At least one skill is required').max(8, 'You can select at most 8 skills'),
 });
 
 export const servicesSchema = z.object({

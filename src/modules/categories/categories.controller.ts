@@ -33,4 +33,9 @@ export const categoriesController = {
     const result = await categoriesService.remove(req.params.id);
     return sendSuccess(res, null, result.message);
   }),
+
+  listSkills: asyncHandler(async (req: Request<CategoryIdParam>, res: Response) => {
+    const skills = await categoriesService.getSkills(req.params.id);
+    return sendSuccess(res, skills);
+  }),
 };

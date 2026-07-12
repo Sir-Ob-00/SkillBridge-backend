@@ -39,4 +39,10 @@ router.delete(
   categoriesController.remove
 );
 
+router.get(
+  '/:id/skills',
+  validate(categoryIdParamSchema, 'params'),
+  categoriesController.listSkills
+);
+
 export const categoriesRouter = router;

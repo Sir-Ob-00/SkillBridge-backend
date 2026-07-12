@@ -230,13 +230,16 @@ model ArtisanSkill {
 }
 
 model Skill {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id         String    @id @default(uuid())
+  name       String    @unique
+  active     Boolean   @default(true)
+  categoryId String?
+  createdAt  DateTime  @default(now())
 
+  category Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   artisans ArtisanSkill[]
 
+  @@index([categoryId])
   @@map("skills")
 }
 
@@ -336,6 +339,7 @@ model Category {
 
   artisans  ArtisanCategory[]
   services  ArtisanService[]
+  skills    Skill[]
 
   @@map("categories")
 }

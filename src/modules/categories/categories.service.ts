@@ -5,18 +5,7 @@ import {
   UpdateCategoryInput,
   ListCategoriesQuery,
 } from './categories.validators';
-
-export const DEFAULT_CATEGORIES = [
-  'Graphic Design',
-  'Photography',
-  'Barbering',
-  'Makeup',
-  'Tailoring',
-  'Laptop Repair',
-  'Phone Repair',
-  'Tutoring',
-  'Event Decoration',
-];
+import { DEFAULT_CATEGORIES, skillsService } from '../skills/skills.service';
 
 export const categoriesService = {
   async list(query: ListCategoriesQuery) {
@@ -54,14 +43,26 @@ export const categoriesService = {
     return { message: 'Category deleted.' };
   },
 
-  /** Seeds the default category list if the table is empty. */
-  async ensureDefaults() {
-    const count = await prisma.category.count();
-    if (count > 0) return;
+  /** Returns the active skills that belong to a category. */
+  async getSkills(categoryId: string) {
+    const category = await prisma.category.findUnique({ where: { id: categoryId } });
+    if (!category) {
+      throw ApiError.notFound('Category not found.');
+    }
 
-    await prisma.category.createMany({
-      data: DEFAULT_CATEGORIES.map((name) => ({ name })),
-      skipDuplicates: true,
-    });
+    return skillsService.listByCategory(categoryId);
+  },
+
+  /** Seeds the master category list (idempotent). */
+  async ensureDefaults() {
+    await Promise.all(
+      DEFAULT_CATEGORIES.map((name) =>
+        prisma.category.upsert({
+          where: { name },
+          update: {},
+          create: { name },
+        })
+      )
+    );
   },
 };
