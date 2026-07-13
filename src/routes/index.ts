@@ -11,6 +11,7 @@ import { reportsRouter } from '../modules/reports/reports.routes';
 import { analyticsRouter } from '../modules/analytics/analytics.routes';
 import { chatRouter } from '../modules/messages/messages.routes';
 import { skillsRouter } from '../modules/skills/skills.routes';
+import { uploadsPublicRouter } from '../modules/uploads/uploads.routes';
 import { adminRouter } from '../modules/admin/admin.routes';
 import * as adminRouters from '../modules/admin';
 
@@ -32,6 +33,7 @@ export const createApiRouter = (): Router => {
   apiRouter.use('/analytics', analyticsRouter);
   apiRouter.use('/chats', chatRouter);
   apiRouter.use('/skills', skillsRouter);
+  apiRouter.use('/uploads', uploadsPublicRouter);
 
   apiRouter.use('/admin/auth', adminRouters.adminAuthRouter);
   apiRouter.use('/admin/profile', adminRouters.adminProfileRouter);
