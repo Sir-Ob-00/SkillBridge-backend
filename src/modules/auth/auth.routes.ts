@@ -7,8 +7,6 @@ import {
   loginSchema,
   refreshSchema,
   logoutSchema,
-  verifyEmailSchema,
-  resendEmailOtpSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
   passwordStrengthSchema,
@@ -20,18 +18,6 @@ router.post('/register', authLimiter, validate(registerSchema), authController.r
 router.post('/login', authLimiter, validate(loginSchema), authController.login);
 router.post('/refresh', validate(refreshSchema), authController.refresh);
 router.post('/logout', validate(logoutSchema), authController.logout);
-router.post(
-  '/verify-email',
-  authLimiter,
-  validate(verifyEmailSchema),
-  authController.verifyEmail
-);
-router.post(
-  '/resend-email-otp',
-  authLimiter,
-  validate(resendEmailOtpSchema),
-  authController.resendEmailOtp
-);
 router.post(
   '/forgot-password',
   authLimiter,

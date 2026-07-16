@@ -8,8 +8,6 @@ import {
   LoginInput,
   RefreshInput,
   LogoutInput,
-  VerifyEmailInput,
-  ResendEmailOtpInput,
   ForgotPasswordInput,
   ResetPasswordInput,
   PasswordStrengthInput,
@@ -18,7 +16,7 @@ import {
 export const authController = {
   register: asyncHandler(async (req: Request<unknown, unknown, RegisterInput>, res: Response) => {
     const result = await authService.register(req.body);
-    return sendSuccess(res, result, 'Account created successfully. Please verify your email.', 201);
+    return sendSuccess(res, result, 'Account created successfully.', 201);
   }),
 
   login: asyncHandler(async (req: Request<unknown, unknown, LoginInput>, res: Response) => {
@@ -35,20 +33,6 @@ export const authController = {
     const result = await authService.logout(req.body.refreshToken);
     return sendSuccess(res, null, result.message);
   }),
-
-  verifyEmail: asyncHandler(
-    async (req: Request<unknown, unknown, VerifyEmailInput>, res: Response) => {
-      const result = await authService.verifyEmail(req.body);
-      return sendSuccess(res, null, result.message);
-    }
-  ),
-
-  resendEmailOtp: asyncHandler(
-    async (req: Request<unknown, unknown, ResendEmailOtpInput>, res: Response) => {
-      const result = await authService.resendEmailOtp(req.body);
-      return sendSuccess(res, null, result.message);
-    }
-  ),
 
   forgotPassword: asyncHandler(
     async (req: Request<unknown, unknown, ForgotPasswordInput>, res: Response) => {

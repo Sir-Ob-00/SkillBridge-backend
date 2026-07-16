@@ -26,17 +26,8 @@ export const env = {
   RATE_LIMIT_WINDOW_MS: Number(process.env.RATE_LIMIT_WINDOW_MS ?? 900000),
   RATE_LIMIT_MAX: Number(process.env.RATE_LIMIT_MAX ?? 200),
 
-  // Email (Brevo SMTP)
-  EMAIL_HOST: process.env.EMAIL_HOST ?? 'smtp-relay.brevo.com',
-  EMAIL_PORT: Number(process.env.EMAIL_PORT ?? 587),
-  EMAIL_USER: process.env.EMAIL_USER ?? '',
-  EMAIL_PASS: process.env.EMAIL_PASS ?? '',
-  EMAIL_FROM: process.env.EMAIL_FROM ?? 'SkillBridge <no-reply@skillbridge.dev>',
-  EMAIL_OTP_TTL_MINUTES: Number(process.env.EMAIL_OTP_TTL_MINUTES ?? 10),
-  FRONTEND_URL: process.env.FRONTEND_URL ?? '',
-
-  // Unverified-account cleanup (hours). Accounts older than this that have not
-  // verified their email are removed by the daily background job.
+  // Unverified/abandoned-account cleanup (hours). Accounts older than this that
+  // never started onboarding are removed by the daily background job.
   UNVERIFIED_ACCOUNT_TTL_HOURS: Number(process.env.UNVERIFIED_ACCOUNT_TTL_HOURS ?? 24),
 
   CLOUDINARY_CLOUD_NAME: required('CLOUDINARY_CLOUD_NAME'),

@@ -1,5 +1,5 @@
 import cron, { ScheduledTask } from 'node-cron';
-import { cleanupUnverifiedAccounts } from '../modules/auth/account-cleanup.service';
+import { cleanupAbandonedAccounts } from '../modules/auth/account-cleanup.service';
 import { logger } from '../utils/logger';
 
 let task: ScheduledTask | null = null;
@@ -10,7 +10,7 @@ let task: ScheduledTask | null = null;
  */
 const runCleanup = async (): Promise<void> => {
   try {
-    const result = await cleanupUnverifiedAccounts();
+    const result = await cleanupAbandonedAccounts();
     logger.info(`[cleanup] Scheduled run complete (${result.deleted} removed).`);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'unknown error';

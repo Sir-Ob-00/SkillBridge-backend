@@ -34,7 +34,6 @@ const openApiSpec = {
           phone: { type: 'string', nullable: true },
           profileImageUrl: { type: 'string', nullable: true },
           isSuspended: { type: 'boolean' },
-          emailVerified: { type: 'boolean' },
           createdAt: { type: 'string', format: 'date-time' },
         },
       },
@@ -140,15 +139,14 @@ const openApiSpec = {
                 example: {
                   success: true,
                   data: {
-                    user: {
-                      id: 'clx000000000000000000000001',
-                      name: 'Jane Doe',
-                      email: 'student@example.com',
-                      role: 'student',
-                      emailVerified: true,
-                    },
-                    accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-                    refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+                      user: {
+                        id: 'clx000000000000000000000001',
+                        name: 'Jane Doe',
+                        email: 'student@example.com',
+                        role: 'student',
+                      },
+                      accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+                      refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
                   },
                   message: 'Logged in successfully.',
                 },
@@ -158,7 +156,7 @@ const openApiSpec = {
           401: { $ref: '#/components/schemas/Error' },
           403: {
             $ref: '#/components/schemas/Error',
-            description: 'Returned when the email is not yet verified',
+            description: 'Returned when the account is suspended',
           },
         },
       },
@@ -166,7 +164,7 @@ const openApiSpec = {
     '/auth/register': {
       post: {
         tags: ['Auth'],
-        summary: 'Register a new account and send an email verification OTP',
+        summary: 'Register a new account (no email verification required)',
         requestBody: {
           required: true,
           content: {
@@ -194,7 +192,7 @@ const openApiSpec = {
         },
         responses: {
           201: {
-            description: 'Account created; verification OTP emailed',
+            description: 'Account created; JWT tokens issued',
             content: {
               'application/json': {
                 schema: { $ref: '#/components/schemas/RegisterSuccess' },
@@ -206,85 +204,15 @@ const openApiSpec = {
                       name: 'Jane Doe',
                       email: 'student@example.com',
                       role: 'student',
-                      emailVerified: false,
                     },
                   },
-                  message: 'Account created successfully. Please verify your email.',
+                  message: 'Account created successfully.',
                 },
               },
             },
           },
           409: { $ref: '#/components/schemas/Error' },
           400: { $ref: '#/components/schemas/Error' },
-        },
-      },
-    },
-    '/auth/verify-email': {
-      post: {
-        tags: ['Auth'],
-        summary: 'Verify an email address using the OTP',
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                properties: {
-                  email: { type: 'string' },
-                  otp: { type: 'string', description: '6-digit numeric OTP', example: '482913' },
-                },
-                required: ['email', 'otp'],
-              },
-              example: { email: 'student@example.com', otp: '482913' },
-            },
-          },
-        },
-        responses: {
-          200: {
-            description: 'Email verified',
-            content: {
-              'application/json': {
-                example: { success: true, message: 'Email verified successfully.' },
-              },
-            },
-          },
-          400: {
-            $ref: '#/components/schemas/Error',
-            description: 'Invalid OTP, expired OTP, already verified, or already used',
-          },
-        },
-      },
-    },
-    '/auth/resend-email-otp': {
-      post: {
-        tags: ['Auth'],
-        summary: 'Resend a new email verification OTP (invalidates the previous one)',
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                properties: { email: { type: 'string' } },
-                required: ['email'],
-              },
-              example: { email: 'student@example.com' },
-            },
-          },
-        },
-        responses: {
-          200: {
-            description: 'New OTP sent',
-            content: {
-              'application/json': {
-                example: { success: true, message: 'Verification code sent successfully.' },
-              },
-            },
-          },
-          400: {
-            $ref: '#/components/schemas/Error',
-            description: 'Email not found or already verified',
-          },
         },
       },
     },

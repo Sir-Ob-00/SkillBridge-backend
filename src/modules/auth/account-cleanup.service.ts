@@ -8,51 +8,45 @@ interface CleanupResult {
 }
 
 /**
- * Removes abandoned, unverified accounts: users with `emailVerified = false`
- * whose `createdAt` is older than the configured retention window.
+ * Removes abandoned accounts: users created longer ago than the configured
+ * retention window that never completed onboarding (no artisan/student
+ * profile was created). Accounts that have started onboarding are kept.
  *
- * Verified users are never touched, and deletion is based solely on the
- * account age + verification status (never on OTP expiry). Related records
- * (OTP, refresh tokens, password-reset tokens, profiles, etc.) are removed
- * via Prisma cascade rules, with an explicit OTP delete as a safety net.
+ * Related records (refresh tokens, password-reset tokens, profiles, etc.)
+ * are removed via Prisma cascade rules.
  */
-export const cleanupUnverifiedAccounts = async (): Promise<CleanupResult> => {
+export const cleanupAbandonedAccounts = async (): Promise<CleanupResult> => {
   const now = new Date();
   const cutoff = new Date(now.getTime() - env.UNVERIFIED_ACCOUNT_TTL_HOURS * 60 * 60 * 1000);
 
   try {
-    // Safety net: explicitly clear OTP rows for the targets before deleting
-    // the users. The FK cascade would handle this too, but doing it manually
-    // guarantees no orphaned OTP rows regardless of cascade configuration.
     const stale = await prisma.user.findMany({
       where: {
-        emailVerified: false,
         createdAt: { lt: cutoff },
+        artisanProfile: null,
+        studentProfile: null,
       },
       select: { id: true },
     });
 
     if (stale.length === 0) {
-      logger.info('[cleanup] No unverified accounts older than', cutoff.toISOString());
+      logger.info('[cleanup] No abandoned accounts older than', cutoff.toISOString());
       return { deleted: 0, cutoff };
     }
 
     const ids = stale.map((u) => u.id);
 
-    // Remove dependent OTP rows first, then the users. The OTP delete is a
-    // safety net in addition to the FK cascade on the user delete.
-    await prisma.emailVerificationOTP.deleteMany({ where: { userId: { in: ids } } });
     await prisma.user.deleteMany({ where: { id: { in: ids } } });
 
-    logger.info(`[cleanup] Deleted ${ids.length} unverified account(s) older than`, cutoff.toISOString());
+    logger.info(`[cleanup] Deleted ${ids.length} abandoned account(s) older than`, cutoff.toISOString());
     return { deleted: ids.length, cutoff };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'unknown error';
-    logger.error('[cleanup] Failed to remove unverified accounts:', message);
+    logger.error('[cleanup] Failed to remove abandoned accounts:', message);
     throw error;
   }
 };
 
 export const accountCleanupService = {
-  cleanupUnverifiedAccounts,
+  cleanupAbandonedAccounts,
 };
