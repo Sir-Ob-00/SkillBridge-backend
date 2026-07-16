@@ -523,6 +523,47 @@ const openApiSpec = {
         responses: { 200: { description: 'Skills' } },
       },
     },
+    '/artisans/me/revenue': {
+      get: {
+        tags: ['Artisan', 'Earnings'],
+        summary: "Get the authenticated artisan's total earnings",
+        responses: {
+          200: {
+            description: 'Earnings from completed bookings',
+            content: {
+              'application/json': {
+                example: {
+                  success: true,
+                  data: { artisanId: 'clx0000000000000000000000ab', totalEarned: 1250.0, completedBookings: 12 },
+                },
+              },
+            },
+          },
+          401: { $ref: '#/components/schemas/Error' },
+        },
+      },
+    },
+    '/artisans/{id}/revenue': {
+      get: {
+        tags: ['Artisan', 'Earnings'],
+        summary: "Get an artisan's total earnings by profile id",
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          200: {
+            description: 'Earnings from completed bookings',
+            content: {
+              'application/json': {
+                example: {
+                  success: true,
+                  data: { artisanId: 'clx0000000000000000000000ab', totalEarned: 1250.0, completedBookings: 12 },
+                },
+              },
+            },
+          },
+          404: { $ref: '#/components/schemas/Error' },
+        },
+      },
+    },
   },
 };
 

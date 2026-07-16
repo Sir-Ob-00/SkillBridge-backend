@@ -25,6 +25,7 @@ const router = Router();
 router.use('/me/onboarding', onboardingRouter);
 
 router.get('/me/profile', requireAuth, requireRole(['artisan']), artisansController.getMyProfile);
+router.get('/me/revenue', requireAuth, requireRole(['artisan']), artisansController.getMyRevenue);
 router.patch(
   '/me/profile',
   requireAuth,
@@ -46,6 +47,7 @@ router.get('/:id', validate(artisanIdParamSchema, 'params'), artisansController.
 router.get('/:id/services', validate(artisanIdParamSchema, 'params'), artisansController.listServices);
 router.get('/:id/availability', validate(artisanIdParamSchema, 'params'), artisansController.getAvailability);
 router.get('/:id/reviews', validate(artisanIdParamSchema, 'params'), validate(listReviewsQuerySchema, 'query'), artisansController.listReviews);
+router.get('/:id/revenue', validate(artisanIdParamSchema, 'params'), artisansController.getRevenue);
 
 router.delete(
   '/:id/portfolio/:itemId',

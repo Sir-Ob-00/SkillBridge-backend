@@ -314,6 +314,33 @@ export const artisansService = {
     return { message: 'Service removed.' };
   },
 
+  async getRevenue(artisanId: string) {
+    const profile = await prisma.artisanProfile.findUnique({ where: { id: artisanId } });
+    if (!profile) {
+      throw ApiError.notFound('Artisan not found.');
+    }
+
+    const result = await prisma.booking.aggregate({
+      where: { artisanId, status: 'completed' },
+      _sum: { price: true },
+      _count: { _all: true },
+    });
+
+    return {
+      artisanId,
+      totalEarned: Number(result._sum.price ?? 0),
+      completedBookings: result._count._all,
+    };
+  },
+
+  async getMyRevenue(userId: string) {
+    const profile = await prisma.artisanProfile.findUnique({ where: { userId } });
+    if (!profile) {
+      throw ApiError.notFound('Artisan profile not found.');
+    }
+    return this.getRevenue(profile.id);
+  },
+
   async getAvailability(id: string) {
     const profile = await prisma.artisanProfile.findUnique({
       where: { id },

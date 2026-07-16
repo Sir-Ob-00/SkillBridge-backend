@@ -26,6 +26,12 @@ export const artisansController = {
     return sendSuccess(res, profile);
   }),
 
+  getMyRevenue: asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) throw ApiError.unauthorized();
+    const revenue = await artisansService.getMyRevenue(req.user.id);
+    return sendSuccess(res, revenue);
+  }),
+
   upsertMyProfile: asyncHandler(
     async (req: Request<unknown, unknown, UpsertArtisanProfileInput>, res: Response) => {
       if (!req.user) throw ApiError.unauthorized();
@@ -85,6 +91,11 @@ export const artisansController = {
     if (!req.user) throw ApiError.unauthorized();
     const result = await artisansService.deleteService(req.user.id, req.params.serviceId);
     return sendSuccess(res, null, result.message);
+  }),
+
+  getRevenue: asyncHandler(async (req: Request<ArtisanIdParam>, res: Response) => {
+    const revenue = await artisansService.getRevenue(req.params.id);
+    return sendSuccess(res, revenue);
   }),
 
   getAvailability: asyncHandler(async (req: Request<ArtisanIdParam>, res: Response) => {
