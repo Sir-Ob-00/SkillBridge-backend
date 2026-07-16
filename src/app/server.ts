@@ -7,6 +7,7 @@ import { prisma } from '../config/prisma';
 import { logger } from '../utils/logger';
 import { categoriesService } from '../modules/categories/categories.service';
 import { skillsService } from '../modules/skills/skills.service';
+import { startAccountCleanupJob } from '../jobs/account-cleanup.job';
 
 const bootstrap = async (): Promise<void> => {
   const app = createApp();
@@ -22,6 +23,8 @@ const bootstrap = async (): Promise<void> => {
 
   await categoriesService.ensureDefaults();
   await skillsService.ensureDefaults();
+
+  startAccountCleanupJob();
 
   httpServer.listen(env.PORT, '0.0.0.0', () => {
     logger.info(`Server listening on port ${env.PORT} (${env.NODE_ENV})`);

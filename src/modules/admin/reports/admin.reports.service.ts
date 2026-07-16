@@ -93,14 +93,19 @@ export const adminReportsService = {
     });
   },
 
-  async addNote(id: string, note: string) {
+  async addNote(id: string, note: string, adminId?: string) {
     const report = await prisma.report.findUnique({ where: { id } });
     if (!report) {
       throw ApiError.notFound('Report not found.');
     }
+    const timestamp = new Date().toISOString();
+    const prefix = adminId
+      ? `\n--- Note from admin (${timestamp}) ---\n`
+      : `\n--- Note (${timestamp}) ---\n`;
+    const updatedDetails = (report.details ?? '') + prefix + note;
     return prisma.report.update({
       where: { id },
-      data: { details: note },
+      data: { details: updatedDetails },
       include: REPORT_INCLUDE,
     });
   },

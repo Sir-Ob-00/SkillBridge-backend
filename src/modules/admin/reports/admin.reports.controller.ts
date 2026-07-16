@@ -104,7 +104,7 @@ export const adminReportsController = {
   addNote: asyncHandler(
     async (req: Request<ReportIdParam, unknown, { note: string }>, res: Response) => {
       if (!req.user) throw ApiError.unauthorized();
-      const report = await adminReportsService.addNote(req.params.id, req.body.note);
+      const report = await adminReportsService.addNote(req.params.id, req.body.note, req.user.id);
       await recordAudit({
         adminId: req.user.id,
         action: 'UPDATE',

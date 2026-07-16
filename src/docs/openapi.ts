@@ -24,6 +24,46 @@ const openApiSpec = {
           details: { type: 'object' },
         },
       },
+      PublicUser: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          name: { type: 'string' },
+          email: { type: 'string' },
+          role: { type: 'string', enum: ['student', 'artisan', 'admin', 'super_admin'] },
+          phone: { type: 'string', nullable: true },
+          profileImageUrl: { type: 'string', nullable: true },
+          isSuspended: { type: 'boolean' },
+          emailVerified: { type: 'boolean' },
+          createdAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      RegisterSuccess: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean', example: true },
+          data: {
+            type: 'object',
+            properties: { user: { $ref: '#/components/schemas/PublicUser' } },
+          },
+          message: { type: 'string' },
+        },
+      },
+      AuthSuccess: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean', example: true },
+          data: {
+            type: 'object',
+            properties: {
+              user: { $ref: '#/components/schemas/PublicUser' },
+              accessToken: { type: 'string' },
+              refreshToken: { type: 'string' },
+            },
+          },
+          message: { type: 'string' },
+        },
+      },
       ApplicationStatus: {
         type: 'string',
         enum: [
@@ -87,10 +127,165 @@ const openApiSpec = {
                 properties: { email: { type: 'string' }, password: { type: 'string' } },
                 required: ['email', 'password'],
               },
+              example: { email: 'student@example.com', password: 'Password123' },
             },
           },
         },
-        responses: { 200: { description: 'Tokens issued' }, 401: { $ref: '#/components/schemas/Error' } },
+        responses: {
+          200: {
+            description: 'Tokens issued',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/AuthSuccess' },
+                example: {
+                  success: true,
+                  data: {
+                    user: {
+                      id: 'clx000000000000000000000001',
+                      name: 'Jane Doe',
+                      email: 'student@example.com',
+                      role: 'student',
+                      emailVerified: true,
+                    },
+                    accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+                    refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+                  },
+                  message: 'Logged in successfully.',
+                },
+              },
+            },
+          },
+          401: { $ref: '#/components/schemas/Error' },
+          403: {
+            $ref: '#/components/schemas/Error',
+            description: 'Returned when the email is not yet verified',
+          },
+        },
+      },
+    },
+    '/auth/register': {
+      post: {
+        tags: ['Auth'],
+        summary: 'Register a new account and send an email verification OTP',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string' },
+                  email: { type: 'string' },
+                  password: { type: 'string' },
+                  role: { type: 'string', enum: ['student', 'artisan'], default: 'student' },
+                  phone: { type: 'string' },
+                },
+                required: ['name', 'email', 'password'],
+              },
+              example: {
+                name: 'Jane Doe',
+                email: 'student@example.com',
+                password: 'Password123',
+                role: 'student',
+                phone: '0241234567',
+              },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: 'Account created; verification OTP emailed',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/RegisterSuccess' },
+                example: {
+                  success: true,
+                  data: {
+                    user: {
+                      id: 'clx000000000000000000000001',
+                      name: 'Jane Doe',
+                      email: 'student@example.com',
+                      role: 'student',
+                      emailVerified: false,
+                    },
+                  },
+                  message: 'Account created successfully. Please verify your email.',
+                },
+              },
+            },
+          },
+          409: { $ref: '#/components/schemas/Error' },
+          400: { $ref: '#/components/schemas/Error' },
+        },
+      },
+    },
+    '/auth/verify-email': {
+      post: {
+        tags: ['Auth'],
+        summary: 'Verify an email address using the OTP',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  email: { type: 'string' },
+                  otp: { type: 'string', description: '6-digit numeric OTP', example: '482913' },
+                },
+                required: ['email', 'otp'],
+              },
+              example: { email: 'student@example.com', otp: '482913' },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Email verified',
+            content: {
+              'application/json': {
+                example: { success: true, message: 'Email verified successfully.' },
+              },
+            },
+          },
+          400: {
+            $ref: '#/components/schemas/Error',
+            description: 'Invalid OTP, expired OTP, already verified, or already used',
+          },
+        },
+      },
+    },
+    '/auth/resend-email-otp': {
+      post: {
+        tags: ['Auth'],
+        summary: 'Resend a new email verification OTP (invalidates the previous one)',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: { email: { type: 'string' } },
+                required: ['email'],
+              },
+              example: { email: 'student@example.com' },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'New OTP sent',
+            content: {
+              'application/json': {
+                example: { success: true, message: 'Verification code sent successfully.' },
+              },
+            },
+          },
+          400: {
+            $ref: '#/components/schemas/Error',
+            description: 'Email not found or already verified',
+          },
+        },
       },
     },
     '/onboarding/status': {
